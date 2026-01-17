@@ -115,7 +115,11 @@
         "httpProxy": "HTTP 代理",
         "httpsProxy": "HTTPS 代理",
         "applyProxy": "应用",
-        "proxyApplied": "代理设置已应用"
+        "proxyApplied": "代理设置已应用",
+        "developerTools": "开发者工具",
+        "developerToolsDescription": "API访问和集成",
+        "apiDeveloper": "API",
+        "externalStorage": "云端保存"
     },
     "save": {
         "title": "保存图表",
@@ -128,7 +132,11 @@
             "png": "PNG 图片",
             "svg": "SVG 图片"
         },
-        "savedSuccessfully": "保存成功！"
+        "savedSuccessfully": "保存成功！",
+        "saveToCloud": "保存到云端",
+        "savedToCloud": "成功保存到云端",
+        "configureCloud": "配置云存储",
+        "setupCloud": "设置云端保存"
     },
     "history": {
         "title": "图表历史",

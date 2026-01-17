@@ -115,7 +115,11 @@
         "httpProxy": "HTTP プロキシ",
         "httpsProxy": "HTTPS プロキシ",
         "applyProxy": "適用",
-        "proxyApplied": "プロキシ設定が適用されました"
+        "proxyApplied": "プロキシ設定が適用されました",
+        "developerTools": "開発者ツール",
+        "developerToolsDescription": "APIアクセスと統合",
+        "apiDeveloper": "API",
+        "externalStorage": "クラウド保存"
     },
     "save": {
         "title": "ダイアグラムを保存",
@@ -128,7 +132,11 @@
             "png": "PNG 画像",
             "svg": "SVG 画像"
         },
-        "savedSuccessfully": "保存完了！"
+        "savedSuccessfully": "保存完了！",
+        "saveToCloud": "クラウドに保存",
+        "savedToCloud": "クラウドに正常に保存されました",
+        "configureCloud": "クラウドストレージを設定",
+        "setupCloud": "クラウド保存を設定"
     },
     "history": {
         "title": "ダイアグラム履歴",

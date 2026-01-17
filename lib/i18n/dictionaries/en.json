@@ -115,7 +115,11 @@
         "httpProxy": "HTTP Proxy",
         "httpsProxy": "HTTPS Proxy",
         "applyProxy": "Apply",
-        "proxyApplied": "Proxy settings applied"
+        "proxyApplied": "Proxy settings applied",
+        "developerTools": "Developer Tools",
+        "developerToolsDescription": "API access and integrations",
+        "apiDeveloper": "API",
+        "externalStorage": "Cloud Save"
     },
     "save": {
         "title": "Save Diagram",
@@ -128,7 +132,11 @@
             "png": "PNG Image",
             "svg": "SVG Image"
         },
-        "savedSuccessfully": "Saved successfully!"
+        "savedSuccessfully": "Saved successfully!",
+        "saveToCloud": "Save to Cloud",
+        "savedToCloud": "Saved to cloud successfully",
+        "configureCloud": "Configure cloud storage",
+        "setupCloud": "Setup Cloud Save"
     },
     "history": {
         "title": "Diagram History",
