@@ -3,6 +3,13 @@
  *
  * Provides functionality to save diagram data to external APIs (webhooks/callbacks).
  * Allows integration with ERP/CRM/CMS systems.
+ *
+ * Configuration is read from environment variables:
+ * - EXTERNAL_STORAGE_ENABLED: "true" to enable
+ * - EXTERNAL_STORAGE_ENDPOINT_URL: The webhook/API endpoint URL
+ * - EXTERNAL_STORAGE_METHOD: "POST" or "PUT" (default: POST)
+ * - EXTERNAL_STORAGE_HEADERS: JSON string of custom headers (e.g., '{"Authorization": "Bearer token"}')
+ * - EXTERNAL_STORAGE_MAPPING: JSON string of field mapping (e.g., '{"content": "$xml", "title": "$filename"}')
  */
 
 export interface ExternalStorageConfig {
@@ -19,43 +26,52 @@ export interface SaveToExternalResult {
     response?: unknown
 }
 
-// LocalStorage key for external storage configuration
-export const EXTERNAL_STORAGE_KEY = "next-ai-draw-io-external-storage"
-
 /**
- * Get external storage configuration from localStorage
+ * Get external storage configuration from environment variables (server-side)
  */
-export function getExternalStorageConfig(): ExternalStorageConfig | null {
-    if (typeof window === "undefined") return null
+export function getExternalStorageConfigFromEnv(): ExternalStorageConfig {
+    const enabled = process.env.EXTERNAL_STORAGE_ENABLED === "true"
+    const endpointUrl = process.env.EXTERNAL_STORAGE_ENDPOINT_URL || ""
+    const method = (process.env.EXTERNAL_STORAGE_METHOD || "POST") as
+        | "POST"
+        | "PUT"
 
-    try {
-        const stored = localStorage.getItem(EXTERNAL_STORAGE_KEY)
-        if (!stored) return null
+    let headers: Record<string, string> = {}
+    if (process.env.EXTERNAL_STORAGE_HEADERS) {
+        try {
+            headers = JSON.parse(process.env.EXTERNAL_STORAGE_HEADERS)
+        } catch {
+            console.error("Failed to parse EXTERNAL_STORAGE_HEADERS")
+        }
+    }
 
-        const config = JSON.parse(stored)
-        return config as ExternalStorageConfig
-    } catch (error) {
-        console.error("Failed to parse external storage config:", error)
-        return null
+    let mappingSchema: Record<string, string> = {
+        content: "$xml",
+        title: "$filename",
+        created_at: "$timestamp",
+    }
+    if (process.env.EXTERNAL_STORAGE_MAPPING) {
+        try {
+            mappingSchema = JSON.parse(process.env.EXTERNAL_STORAGE_MAPPING)
+        } catch {
+            console.error("Failed to parse EXTERNAL_STORAGE_MAPPING")
+        }
+    }
+
+    return {
+        enabled,
+        endpointUrl,
+        method,
+        headers,
+        mappingSchema,
     }
 }
 
 /**
- * Save external storage configuration to localStorage
+ * Check if external storage is enabled (can be called client-side via API)
  */
-export function saveExternalStorageConfig(config: ExternalStorageConfig): void {
-    if (typeof window === "undefined") return
-
-    localStorage.setItem(EXTERNAL_STORAGE_KEY, JSON.stringify(config))
-}
-
-/**
- * Clear external storage configuration
- */
-export function clearExternalStorageConfig(): void {
-    if (typeof window === "undefined") return
-
-    localStorage.removeItem(EXTERNAL_STORAGE_KEY)
+export function isExternalStorageEnabled(): boolean {
+    return process.env.EXTERNAL_STORAGE_ENABLED === "true"
 }
 
 /**
@@ -122,34 +138,27 @@ function applyMappingSchema(
 }
 
 /**
- * Save diagram to external API
+ * Save diagram to external API (server-side only)
+ * Reads configuration from environment variables
  */
 export async function saveToExternal(
     xmlContent: string,
     fileName: string,
-    config?: ExternalStorageConfig,
 ): Promise<SaveToExternalResult> {
-    // Get config from parameter or localStorage
-    const storageConfig = config || getExternalStorageConfig()
-
-    if (!storageConfig) {
-        return {
-            success: false,
-            error: "External storage not configured",
-        }
-    }
+    // Get config from environment variables
+    const storageConfig = getExternalStorageConfigFromEnv()
 
     if (!storageConfig.enabled) {
         return {
             success: false,
-            error: "External storage is disabled",
+            error: "External storage is not enabled. Set EXTERNAL_STORAGE_ENABLED=true in environment.",
         }
     }
 
     if (!storageConfig.endpointUrl) {
         return {
             success: false,
-            error: "Endpoint URL is required",
+            error: "Endpoint URL is required. Set EXTERNAL_STORAGE_ENDPOINT_URL in environment.",
         }
     }
 

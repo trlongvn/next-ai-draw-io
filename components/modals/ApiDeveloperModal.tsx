@@ -1,8 +1,8 @@
 "use client"
 
-import { Copy, ExternalLink, Key, RefreshCw } from "lucide-react"
+import { CheckCircle, Copy, ExternalLink, Key, XCircle } from "lucide-react"
 import dynamic from "next/dynamic"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,9 +12,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 
 // Dynamically import SwaggerUI to avoid SSR issues
 const SwaggerUI = dynamic(
@@ -29,13 +27,11 @@ const SwaggerUI = dynamic(
     },
 )
 
-// LocalStorage keys
-const API_KEY_STORAGE_KEY = "next-ai-draw-io-headless-api-key"
-const API_ENABLED_STORAGE_KEY = "next-ai-draw-io-headless-api-enabled"
-
 interface ApiDeveloperModalProps {
     open: boolean
     onOpenChange: (open: boolean) => void
+    headlessApiEnabled?: boolean
+    externalStorageEnabled?: boolean
 }
 
 // Tab type
@@ -44,69 +40,38 @@ type TabType = "configuration" | "documentation"
 export function ApiDeveloperModal({
     open,
     onOpenChange,
+    headlessApiEnabled = false,
+    externalStorageEnabled = false,
 }: ApiDeveloperModalProps) {
     const [activeTab, setActiveTab] = useState<TabType>("configuration")
-    const [apiKey, setApiKey] = useState("")
-    const [apiEnabled, setApiEnabled] = useState(false)
-    const [isGenerating, setIsGenerating] = useState(false)
 
-    // Load stored values on mount
-    useEffect(() => {
-        if (open) {
-            const storedKey = localStorage.getItem(API_KEY_STORAGE_KEY) || ""
-            const storedEnabled =
-                localStorage.getItem(API_ENABLED_STORAGE_KEY) === "true"
-            setApiKey(storedKey)
-            setApiEnabled(storedEnabled)
-        }
-    }, [open])
-
-    // Generate a new API key
-    // Note: This is client-side key generation for development/testing purposes.
-    // For production use, configure HEADLESS_API_KEY environment variable on the server.
-    const generateApiKey = () => {
-        setIsGenerating(true)
-        // Generate a cryptographically secure random key using Web Crypto API
-        const array = new Uint8Array(32)
-        crypto.getRandomValues(array)
-        const newKey = Array.from(array)
-            .map((b) => b.toString(16).padStart(2, "0"))
-            .join("")
-        setApiKey(`naid_${newKey}`)
-        setIsGenerating(false)
-        toast.success("New API key generated")
-    }
-
-    // Copy API key to clipboard
-    const copyApiKey = async () => {
-        if (!apiKey) return
+    // Copy example to clipboard
+    const copyExample = async (text: string) => {
         try {
-            await navigator.clipboard.writeText(apiKey)
-            toast.success("API key copied to clipboard")
+            await navigator.clipboard.writeText(text)
+            toast.success("Copied to clipboard")
         } catch {
-            toast.error("Failed to copy API key")
+            toast.error("Failed to copy")
         }
-    }
-
-    // Save configuration
-    const saveConfiguration = () => {
-        localStorage.setItem(API_KEY_STORAGE_KEY, apiKey)
-        localStorage.setItem(API_ENABLED_STORAGE_KEY, String(apiEnabled))
-        toast.success("API configuration saved")
-    }
-
-    // Revoke API key
-    const revokeApiKey = () => {
-        setApiKey("")
-        localStorage.removeItem(API_KEY_STORAGE_KEY)
-        toast.success("API key revoked")
     }
 
     // Get the current origin for the API endpoint
-    const getApiEndpoint = () => {
+    const getFullApiEndpoint = () => {
         if (typeof window === "undefined") return "/api/v1/generate"
         return `${window.location.origin}/api/v1/generate`
     }
+
+    const getExternalSaveEndpoint = () => {
+        if (typeof window === "undefined") return "/api/v1/external-save"
+        return `${window.location.origin}/api/v1/external-save`
+    }
+
+    const exampleCurl = `curl -X POST ${getFullApiEndpoint()} \\
+  -H "Content-Type: application/json" \\
+  -H "x-api-key: \${HEADLESS_API_KEY}" \\
+  -d '{
+    "prompt": "Create a simple flowchart"
+  }'`
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -117,7 +82,8 @@ export function ApiDeveloperModal({
                         API Developer Tools
                     </DialogTitle>
                     <DialogDescription>
-                        Configure and test the headless diagram generation API
+                        Headless API for diagram generation. Configuration is
+                        managed via environment variables.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -153,108 +119,115 @@ export function ApiDeveloperModal({
                 <div className="flex-1 overflow-auto px-6 py-4">
                     {activeTab === "configuration" && (
                         <div className="space-y-6">
-                            {/* Enable API Toggle */}
-                            <div className="flex items-center justify-between py-3 border-b">
-                                <div className="space-y-0.5">
-                                    <Label className="text-sm font-medium">
-                                        Enable Headless API
-                                    </Label>
-                                    <p className="text-xs text-muted-foreground">
-                                        Allow external systems to generate
-                                        diagrams via API
-                                    </p>
-                                </div>
-                                <Switch
-                                    checked={apiEnabled}
-                                    onCheckedChange={setApiEnabled}
-                                />
-                            </div>
-
-                            {/* API Key Management */}
-                            <div className="space-y-3">
-                                <div className="space-y-0.5">
-                                    <Label className="text-sm font-medium">
-                                        API Key
-                                    </Label>
-                                    <p className="text-xs text-muted-foreground">
-                                        Use this key in the x-api-key header for
-                                        authentication
-                                    </p>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Input
-                                        type="password"
-                                        value={apiKey}
-                                        readOnly
-                                        placeholder="No API key generated"
-                                        className="font-mono text-sm"
-                                    />
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={copyApiKey}
-                                        disabled={!apiKey}
-                                        title="Copy API key"
-                                    >
-                                        <Copy className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button
-                                        variant="outline"
-                                        onClick={generateApiKey}
-                                        disabled={isGenerating}
-                                        className="flex-1"
-                                    >
-                                        <RefreshCw
-                                            className={`h-4 w-4 mr-2 ${isGenerating ? "animate-spin" : ""}`}
-                                        />
-                                        Generate New Key
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={revokeApiKey}
-                                        disabled={!apiKey}
-                                        className="text-destructive hover:text-destructive"
-                                    >
-                                        Revoke Key
-                                    </Button>
+                            {/* Status Section */}
+                            <div className="space-y-4">
+                                <Label className="text-sm font-medium">
+                                    API Status
+                                </Label>
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                                        {headlessApiEnabled ? (
+                                            <CheckCircle className="h-4 w-4 text-green-500" />
+                                        ) : (
+                                            <XCircle className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                        <span className="text-sm">
+                                            Headless API:{" "}
+                                            {headlessApiEnabled
+                                                ? "Enabled"
+                                                : "Not configured"}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                                        {externalStorageEnabled ? (
+                                            <CheckCircle className="h-4 w-4 text-green-500" />
+                                        ) : (
+                                            <XCircle className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                        <span className="text-sm">
+                                            External Storage:{" "}
+                                            {externalStorageEnabled
+                                                ? "Enabled"
+                                                : "Not configured"}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* API Endpoint Info */}
+                            {/* Environment Variables */}
                             <div className="space-y-3 pt-4 border-t">
                                 <Label className="text-sm font-medium">
-                                    API Endpoint
+                                    Environment Variables
                                 </Label>
-                                <div className="p-3 bg-muted rounded-lg font-mono text-sm break-all">
-                                    {getApiEndpoint()}
+                                <p className="text-xs text-muted-foreground">
+                                    Configure these in your .env.local or
+                                    deployment environment:
+                                </p>
+                                <div className="p-3 bg-muted rounded-lg font-mono text-xs space-y-2 overflow-x-auto">
+                                    <div className="text-muted-foreground">
+                                        # Headless API Authentication
+                                    </div>
+                                    <div>HEADLESS_API_KEY=your-secret-key</div>
+                                    <div className="text-muted-foreground mt-3">
+                                        # External Storage (Webhook)
+                                    </div>
+                                    <div>EXTERNAL_STORAGE_ENABLED=true</div>
+                                    <div>
+                                        EXTERNAL_STORAGE_ENDPOINT_URL=https://your-api.com/save
+                                    </div>
+                                    <div>EXTERNAL_STORAGE_METHOD=POST</div>
+                                    <div>
+                                        {`EXTERNAL_STORAGE_HEADERS={"Authorization": "Bearer token"}`}
+                                    </div>
+                                    <div>
+                                        {`EXTERNAL_STORAGE_MAPPING={"content": "$xml", "title": "$filename"}`}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* API Endpoints */}
+                            <div className="space-y-3 pt-4 border-t">
+                                <Label className="text-sm font-medium">
+                                    API Endpoints
+                                </Label>
+                                <div className="space-y-2">
+                                    <div className="p-3 bg-muted rounded-lg">
+                                        <div className="text-xs text-muted-foreground mb-1">
+                                            Generate Diagram
+                                        </div>
+                                        <code className="font-mono text-sm break-all">
+                                            POST {getFullApiEndpoint()}
+                                        </code>
+                                    </div>
+                                    <div className="p-3 bg-muted rounded-lg">
+                                        <div className="text-xs text-muted-foreground mb-1">
+                                            Save to External Storage
+                                        </div>
+                                        <code className="font-mono text-sm break-all">
+                                            POST {getExternalSaveEndpoint()}
+                                        </code>
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Example cURL */}
-                            <div className="space-y-3">
-                                <Label className="text-sm font-medium">
-                                    Example Request
-                                </Label>
+                            <div className="space-y-3 pt-4 border-t">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-sm font-medium">
+                                        Example Request
+                                    </Label>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => copyExample(exampleCurl)}
+                                    >
+                                        <Copy className="h-3 w-3 mr-1" />
+                                        Copy
+                                    </Button>
+                                </div>
                                 <pre className="p-3 bg-muted rounded-lg text-xs overflow-x-auto">
-                                    {`curl -X POST ${getApiEndpoint()} \\
-  -H "Content-Type: application/json" \\
-  -H "x-api-key: ${apiKey || "<your-api-key>"}" \\
-  -d '{
-    "prompt": "Create a simple flowchart"
-  }'`}
+                                    {exampleCurl}
                                 </pre>
-                            </div>
-
-                            {/* Save Button */}
-                            <div className="pt-4">
-                                <Button
-                                    onClick={saveConfiguration}
-                                    className="w-full"
-                                >
-                                    Save Configuration
-                                </Button>
                             </div>
                         </div>
                     )}

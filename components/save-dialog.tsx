@@ -1,6 +1,6 @@
 "use client"
 
-import { Cloud, Settings } from "lucide-react"
+import { Cloud } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -21,10 +21,8 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { useDictionary } from "@/hooks/use-dictionary"
-import {
-    getExternalStorageConfig,
-    saveToExternal,
-} from "@/lib/external-storage"
+import { getSelectedAIConfig } from "@/hooks/use-model-config"
+import { getApiEndpoint } from "@/lib/base-path"
 
 export type ExportFormat = "drawio" | "png" | "svg"
 
@@ -34,7 +32,7 @@ interface SaveDialogProps {
     onSave: (filename: string, format: ExportFormat) => void
     defaultFilename: string
     currentXml?: string
-    onOpenExternalStorage?: () => void
+    externalStorageEnabled?: boolean
 }
 
 export function SaveDialog({
@@ -43,13 +41,12 @@ export function SaveDialog({
     onSave,
     defaultFilename,
     currentXml,
-    onOpenExternalStorage,
+    externalStorageEnabled = false,
 }: SaveDialogProps) {
     const dict = useDictionary()
     const [filename, setFilename] = useState(defaultFilename)
     const [format, setFormat] = useState<ExportFormat>("drawio")
     const [isSavingToCloud, setIsSavingToCloud] = useState(false)
-    const externalConfig = getExternalStorageConfig()
 
     useEffect(() => {
         if (open) {
@@ -80,8 +77,27 @@ export function SaveDialog({
         setIsSavingToCloud(true)
 
         try {
-            const result = await saveToExternal(currentXml, finalFilename)
-            if (result.success) {
+            const config = getSelectedAIConfig()
+            const response = await fetch(
+                getApiEndpoint("/api/v1/external-save"),
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(config.accessCode && {
+                            "x-access-code": config.accessCode,
+                        }),
+                    },
+                    body: JSON.stringify({
+                        xml: currentXml,
+                        filename: finalFilename,
+                    }),
+                },
+            )
+
+            const result = await response.json()
+
+            if (result.status === "success") {
                 toast.success(
                     dict.save?.savedToCloud || "Saved to cloud successfully",
                 )
@@ -170,48 +186,18 @@ export function SaveDialog({
                     </div>
                 </div>
                 <DialogFooter className="flex-col gap-3 sm:flex-row">
-                    {/* External Storage Options */}
-                    {externalConfig?.enabled && currentXml && (
-                        <div className="flex gap-2 w-full sm:w-auto">
-                            <Button
-                                variant="outline"
-                                onClick={handleSaveToCloud}
-                                disabled={isSavingToCloud}
-                                className="flex-1 sm:flex-initial"
-                            >
-                                <Cloud className="h-4 w-4 mr-2" />
-                                {isSavingToCloud
-                                    ? "Saving..."
-                                    : dict.save?.saveToCloud || "Save to Cloud"}
-                            </Button>
-                            {onOpenExternalStorage && (
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => {
-                                        onOpenChange(false)
-                                        onOpenExternalStorage()
-                                    }}
-                                    title={
-                                        dict.save?.configureCloud || "Configure"
-                                    }
-                                >
-                                    <Settings className="h-4 w-4" />
-                                </Button>
-                            )}
-                        </div>
-                    )}
-                    {!externalConfig?.enabled && onOpenExternalStorage && (
+                    {/* External Storage - only shown if enabled via env vars */}
+                    {externalStorageEnabled && currentXml && (
                         <Button
-                            variant="ghost"
-                            onClick={() => {
-                                onOpenChange(false)
-                                onOpenExternalStorage()
-                            }}
-                            className="text-muted-foreground hover:text-foreground"
+                            variant="outline"
+                            onClick={handleSaveToCloud}
+                            disabled={isSavingToCloud}
+                            className="w-full sm:w-auto"
                         >
                             <Cloud className="h-4 w-4 mr-2" />
-                            {dict.save?.setupCloud || "Setup Cloud Save"}
+                            {isSavingToCloud
+                                ? "Saving..."
+                                : dict.save?.saveToCloud || "Save to Cloud"}
                         </Button>
                     )}
                     <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">

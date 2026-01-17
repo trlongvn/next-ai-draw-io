@@ -1,6 +1,6 @@
 "use client"
 
-import { Cloud, Code, Github, Info, Moon, Sun, Tag } from "lucide-react"
+import { Code, Github, Info, Moon, Sun, Tag } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -68,7 +68,6 @@ interface SettingsDialogProps {
     minimalStyle?: boolean
     onMinimalStyleChange?: (value: boolean) => void
     onOpenApiDeveloper?: () => void
-    onOpenExternalStorage?: () => void
 }
 
 export const STORAGE_ACCESS_CODE_KEY = "next-ai-draw-io-access-code"
@@ -91,7 +90,6 @@ function SettingsContent({
     minimalStyle = false,
     onMinimalStyleChange = () => {},
     onOpenApiDeveloper,
-    onOpenExternalStorage,
 }: SettingsDialogProps) {
     const dict = useDictionary()
     const router = useRouter()
@@ -493,7 +491,7 @@ function SettingsContent({
                         )}
 
                     {/* Developer Tools Section */}
-                    {(onOpenApiDeveloper || onOpenExternalStorage) && (
+                    {onOpenApiDeveloper && (
                         <div className="py-4 space-y-3 border-t border-border/50">
                             <div className="space-y-0.5">
                                 <Label className="text-sm font-medium">
@@ -505,35 +503,17 @@ function SettingsContent({
                                         "API access and integrations"}
                                 </p>
                             </div>
-                            <div className="flex gap-2">
-                                {onOpenApiDeveloper && (
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => {
-                                            onOpenChange(false)
-                                            onOpenApiDeveloper()
-                                        }}
-                                        className="flex-1 h-9"
-                                    >
-                                        <Code className="h-4 w-4 mr-2" />
-                                        {dict.settings?.apiDeveloper || "API"}
-                                    </Button>
-                                )}
-                                {onOpenExternalStorage && (
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => {
-                                            onOpenChange(false)
-                                            onOpenExternalStorage()
-                                        }}
-                                        className="flex-1 h-9"
-                                    >
-                                        <Cloud className="h-4 w-4 mr-2" />
-                                        {dict.settings?.externalStorage ||
-                                            "Cloud Save"}
-                                    </Button>
-                                )}
-                            </div>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    onOpenChange(false)
+                                    onOpenApiDeveloper()
+                                }}
+                                className="w-full h-9"
+                            >
+                                <Code className="h-4 w-4 mr-2" />
+                                {dict.settings?.apiDeveloper || "API"}
+                            </Button>
                         </div>
                     )}
                 </div>

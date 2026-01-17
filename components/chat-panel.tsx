@@ -23,7 +23,6 @@ import { Toaster, toast } from "sonner"
 import { ButtonWithTooltip } from "@/components/button-with-tooltip"
 import { ChatInput } from "@/components/chat-input"
 import { ApiDeveloperModal } from "@/components/modals/ApiDeveloperModal"
-import { ExternalStorageModal } from "@/components/modals/ExternalStorageModal"
 import { ModelConfigDialog } from "@/components/model-config-dialog"
 import { SettingsDialog } from "@/components/settings-dialog"
 import { useDiagram } from "@/contexts/diagram-context"
@@ -164,8 +163,8 @@ export default function ChatPanel({
     const [showSettingsDialog, setShowSettingsDialog] = useState(false)
     const [showModelConfigDialog, setShowModelConfigDialog] = useState(false)
     const [showApiDeveloperModal, setShowApiDeveloperModal] = useState(false)
-    const [showExternalStorageModal, setShowExternalStorageModal] =
-        useState(false)
+    const [headlessApiEnabled, setHeadlessApiEnabled] = useState(false)
+    const [externalStorageEnabled, setExternalStorageEnabled] = useState(false)
 
     // Model configuration hook
     const modelConfig = useModelConfig()
@@ -195,6 +194,8 @@ export default function ChatPanel({
                 setDailyRequestLimit(data.dailyRequestLimit || 0)
                 setDailyTokenLimit(data.dailyTokenLimit || 0)
                 setTpmLimit(data.tpmLimit || 0)
+                setHeadlessApiEnabled(data.headlessApiEnabled || false)
+                setExternalStorageEnabled(data.externalStorageEnabled || false)
             })
             .catch(() => {})
     }, [])
@@ -1314,7 +1315,6 @@ export default function ChatPanel({
                 minimalStyle={minimalStyle}
                 onMinimalStyleChange={setMinimalStyle}
                 onOpenApiDeveloper={() => setShowApiDeveloperModal(true)}
-                onOpenExternalStorage={() => setShowExternalStorageModal(true)}
             />
 
             <ModelConfigDialog
@@ -1326,11 +1326,8 @@ export default function ChatPanel({
             <ApiDeveloperModal
                 open={showApiDeveloperModal}
                 onOpenChange={setShowApiDeveloperModal}
-            />
-
-            <ExternalStorageModal
-                open={showExternalStorageModal}
-                onOpenChange={setShowExternalStorageModal}
+                headlessApiEnabled={headlessApiEnabled}
+                externalStorageEnabled={externalStorageEnabled}
             />
         </div>
     )
