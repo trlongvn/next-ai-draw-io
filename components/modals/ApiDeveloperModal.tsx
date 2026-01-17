@@ -62,9 +62,11 @@ export function ApiDeveloperModal({
     }, [open])
 
     // Generate a new API key
+    // Note: This is client-side key generation for development/testing purposes.
+    // For production use, configure HEADLESS_API_KEY environment variable on the server.
     const generateApiKey = () => {
         setIsGenerating(true)
-        // Generate a secure random key
+        // Generate a cryptographically secure random key using Web Crypto API
         const array = new Uint8Array(32)
         crypto.getRandomValues(array)
         const newKey = Array.from(array)

@@ -77,20 +77,40 @@ function applyMappingSchema(
     const result: Record<string, unknown> = {}
     const now = new Date()
 
+    // Create a map of variable replacements
+    // Each variable is matched exactly to prevent partial matches
+    const variables: Record<string, string> = {
+        $xml: data.xml,
+        $filename: data.filename,
+        $timestamp: now.toISOString(),
+        $date: now.toISOString().split("T")[0],
+    }
+
     for (const [key, template] of Object.entries(mappingSchema)) {
         let value = template
 
-        // Replace variables
-        value = value.replace(/\$xml/g, data.xml)
-        value = value.replace(/\$filename/g, data.filename)
-        value = value.replace(/\$timestamp/g, now.toISOString())
-        value = value.replace(/\$date/g, now.toISOString().split("T")[0])
+        // Replace variables using exact matching with word boundaries
+        for (const [variable, replacement] of Object.entries(variables)) {
+            // Escape special regex characters in variable name
+            const escapedVar = variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+            // Match the variable followed by non-alphanumeric or end of string
+            const regex = new RegExp(`${escapedVar}(?![a-zA-Z0-9_])`, "g")
+            value = value.replace(regex, replacement)
+        }
 
-        // Try to parse as JSON if it looks like JSON
-        if (value.startsWith("{") || value.startsWith("[")) {
+        // Only try to parse as JSON if the value exactly matches after replacement
+        // AND it starts and ends with proper JSON delimiters
+        const trimmedValue = value.trim()
+        const looksLikeJsonObject =
+            trimmedValue.startsWith("{") && trimmedValue.endsWith("}")
+        const looksLikeJsonArray =
+            trimmedValue.startsWith("[") && trimmedValue.endsWith("]")
+
+        if (looksLikeJsonObject || looksLikeJsonArray) {
             try {
-                result[key] = JSON.parse(value)
+                result[key] = JSON.parse(trimmedValue)
             } catch {
+                // Not valid JSON, use as string
                 result[key] = value
             }
         } else {

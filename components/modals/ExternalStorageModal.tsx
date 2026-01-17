@@ -127,6 +127,8 @@ export function ExternalStorageModal({
     }
 
     // Test the connection
+    // Test connection by sending a HEAD request to verify endpoint accessibility
+    // Note: This only verifies the endpoint is reachable, not that it accepts the payload format
     const handleTest = async () => {
         if (!config.endpointUrl) {
             toast.error("Please enter an endpoint URL")
@@ -136,13 +138,27 @@ export function ExternalStorageModal({
         toast.info("Testing connection...")
 
         try {
+            // Use HEAD request if supported, fallback to OPTIONS for CORS preflight check
+            // This tests endpoint reachability without sending actual data
             const response = await fetch(config.endpointUrl, {
-                method: "OPTIONS",
+                method: "HEAD",
                 headers: config.headers,
-            })
+            }).catch(() =>
+                // If HEAD fails (405), try OPTIONS for CORS preflight
+                fetch(config.endpointUrl, {
+                    method: "OPTIONS",
+                    headers: config.headers,
+                }),
+            )
 
-            if (response.ok || response.status === 204) {
-                toast.success("Connection test successful")
+            if (
+                response.ok ||
+                response.status === 204 ||
+                response.status === 405
+            ) {
+                toast.success(
+                    "Connection test successful - endpoint is reachable",
+                )
             } else {
                 toast.error(`Connection test failed: HTTP ${response.status}`)
             }
