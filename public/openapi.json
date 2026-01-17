@@ -1,13 +1,9 @@
 {
     "openapi": "3.0.3",
     "info": {
-        "title": "Next AI Draw.io API",
+        "title": "API",
         "description": "Headless API for generating draw.io diagrams using AI. This API allows external systems to generate diagrams programmatically without using the web interface.",
         "version": "1.0.0",
-        "contact": {
-            "name": "Next AI Draw.io",
-            "url": "https://github.com/DayuanJiang/next-ai-draw-io"
-        },
         "license": {
             "name": "Apache 2.0",
             "url": "https://www.apache.org/licenses/LICENSE-2.0"

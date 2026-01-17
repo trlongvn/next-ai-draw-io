@@ -1192,16 +1192,11 @@ export default function ChatPanel({
                                         ? "/favicon-white.svg"
                                         : "/favicon.ico"
                                 }
-                                alt="Next AI Drawio"
+                                alt=""
                                 width={isMobile ? 24 : 28}
                                 height={isMobile ? 24 : 28}
                                 className="rounded flex-shrink-0"
                             />
-                            <h1
-                                className={`${isMobile ? "text-sm" : "text-base"} font-semibold tracking-tight whitespace-nowrap`}
-                            >
-                                Next AI Drawio
-                            </h1>
                         </div>
                     </button>
                     <div className="flex items-center gap-1 justify-end overflow-visible">

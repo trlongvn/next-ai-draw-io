@@ -13,6 +13,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { getBasePath } from "@/lib/base-path"
 
 // Dynamically import SwaggerUI to avoid SSR issues
 const SwaggerUI = dynamic(
@@ -268,10 +269,10 @@ export function ApiDeveloperModal({
                                     background: rgba(73, 204, 144, 0.15);
                                 }
                             `}</style>
-                            <SwaggerUI url="/openapi.json" />
+                            <SwaggerUI url={`${getBasePath()}/openapi.json`} />
                             <div className="mt-4 flex justify-center">
                                 <a
-                                    href="/openapi.json"
+                                    href={`${getBasePath()}/openapi.json`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
