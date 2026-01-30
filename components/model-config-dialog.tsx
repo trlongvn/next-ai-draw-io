@@ -52,6 +52,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { useDictionary } from "@/hooks/use-dictionary"
 import type { UseModelConfigReturn } from "@/hooks/use-model-config"
+import { getApiEndpoint } from "@/lib/base-path"
 import { formatMessage } from "@/lib/i18n/utils"
 import type { ProviderConfig, ProviderName } from "@/lib/types/model-config"
 import { PROVIDER_INFO, SUGGESTED_MODELS } from "@/lib/types/model-config"
@@ -324,22 +325,26 @@ export function ModelConfigDialog({
                     ? `${window.location.origin}/api/edgeai`
                     : selectedProvider.baseUrl
 
-                const response = await fetch("/api/validate-model", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        provider: selectedProvider.provider,
-                        apiKey: selectedProvider.apiKey,
-                        baseUrl,
-                        modelId: model.modelId,
-                        // AWS Bedrock credentials
-                        awsAccessKeyId: selectedProvider.awsAccessKeyId,
-                        awsSecretAccessKey: selectedProvider.awsSecretAccessKey,
-                        awsRegion: selectedProvider.awsRegion,
-                        // Vertex AI credentials (Express Mode)
-                        vertexApiKey: selectedProvider.vertexApiKey,
-                    }),
-                })
+                const response = await fetch(
+                    getApiEndpoint("/api/validate-model"),
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            provider: selectedProvider.provider,
+                            apiKey: selectedProvider.apiKey,
+                            baseUrl,
+                            modelId: model.modelId,
+                            // AWS Bedrock credentials
+                            awsAccessKeyId: selectedProvider.awsAccessKeyId,
+                            awsSecretAccessKey:
+                                selectedProvider.awsSecretAccessKey,
+                            awsRegion: selectedProvider.awsRegion,
+                            // Vertex AI credentials (Express Mode)
+                            vertexApiKey: selectedProvider.vertexApiKey,
+                        }),
+                    },
+                )
                 const data = await response.json()
 
                 if (data.valid) {

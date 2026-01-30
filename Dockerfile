@@ -8,8 +8,8 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies (using --legacy-peer-deps for React 19 compatibility)
+RUN npm install --legacy-peer-deps
 
 # Stage 2: Build application
 FROM node:24-alpine AS builder

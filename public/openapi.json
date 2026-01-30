@@ -1,0 +1,306 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "API",
+        "description": "Headless API for generating draw.io diagrams using AI. This API allows external systems to generate diagrams programmatically without using the web interface.",
+        "version": "1.0.0",
+        "license": {
+            "name": "Apache 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+        }
+    },
+    "servers": [
+        {
+            "url": "/api/v1",
+            "description": "API v1 endpoint"
+        }
+    ],
+    "security": [
+        {
+            "ApiKeyAuth": []
+        },
+        {
+            "AccessCodeAuth": []
+        }
+    ],
+    "paths": {
+        "/generate": {
+            "post": {
+                "summary": "Generate a diagram",
+                "description": "Generate a draw.io diagram from a text prompt. Supports both JSON and multipart/form-data requests.",
+                "operationId": "generateDiagram",
+                "tags": ["Diagram Generation"],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GenerateRequest"
+                            },
+                            "examples": {
+                                "simple": {
+                                    "summary": "Simple flowchart",
+                                    "value": {
+                                        "prompt": "Create a simple flowchart with Start, Process, and End nodes"
+                                    }
+                                },
+                                "aws": {
+                                    "summary": "AWS Architecture",
+                                    "value": {
+                                        "prompt": "Create an AWS architecture diagram with EC2, RDS, and S3",
+                                        "minimal_style": false
+                                    }
+                                },
+                                "edit": {
+                                    "summary": "Edit existing diagram",
+                                    "value": {
+                                        "prompt": "Add a new node called 'Review' between Process and End",
+                                        "context_xml": "<mxGraphModel>...</mxGraphModel>"
+                                    }
+                                }
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["prompt"],
+                                "properties": {
+                                    "prompt": {
+                                        "type": "string",
+                                        "description": "Text description of the diagram to generate"
+                                    },
+                                    "file": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "description": "Optional image file (sketch, existing diagram to replicate)"
+                                    },
+                                    "context_xml": {
+                                        "type": "string",
+                                        "description": "Current diagram XML for editing existing diagrams"
+                                    },
+                                    "model_config": {
+                                        "type": "string",
+                                        "description": "JSON string with model configuration"
+                                    },
+                                    "minimal_style": {
+                                        "type": "string",
+                                        "enum": ["true", "false"],
+                                        "description": "Use minimal style (no colors)"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Diagram generated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SuccessResponse"
+                                },
+                                "example": {
+                                    "status": "success",
+                                    "data": {
+                                        "xml": "<mxGraphModel>...</mxGraphModel>",
+                                        "explanation": "I created a flowchart with three nodes: Start, Process, and End, connected with arrows."
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - validation failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                },
+                                "example": {
+                                    "status": "error",
+                                    "error": "Validation failed",
+                                    "details": [
+                                        {
+                                            "code": "too_small",
+                                            "minimum": 1,
+                                            "path": ["prompt"],
+                                            "message": "Prompt is required"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid or missing API key",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                },
+                                "example": {
+                                    "status": "error",
+                                    "error": "Invalid or missing API key"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Failed to generate diagram",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                },
+                                "example": {
+                                    "status": "error",
+                                    "error": "Failed to generate diagram XML",
+                                    "explanation": "I was unable to generate the diagram due to..."
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "ApiKeyAuth": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "x-api-key",
+                "description": "API key for authentication. Set HEADLESS_API_KEY environment variable to enable."
+            },
+            "AccessCodeAuth": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "x-access-code",
+                "description": "Access code for authentication (if configured on server)"
+            }
+        },
+        "schemas": {
+            "GenerateRequest": {
+                "type": "object",
+                "required": ["prompt"],
+                "properties": {
+                    "prompt": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Text description of the diagram to generate",
+                        "example": "Create a flowchart showing user authentication process"
+                    },
+                    "context_xml": {
+                        "type": "string",
+                        "description": "Current diagram XML. Use this to edit an existing diagram.",
+                        "example": "<mxGraphModel>...</mxGraphModel>"
+                    },
+                    "model_config": {
+                        "$ref": "#/components/schemas/ModelConfig"
+                    },
+                    "minimal_style": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "When true, generates diagrams without colors or styling for faster generation"
+                    }
+                }
+            },
+            "ModelConfig": {
+                "type": "object",
+                "description": "Optional AI model configuration",
+                "properties": {
+                    "provider": {
+                        "type": "string",
+                        "description": "AI provider name",
+                        "enum": [
+                            "openai",
+                            "anthropic",
+                            "google",
+                            "azure",
+                            "bedrock",
+                            "openrouter",
+                            "deepseek"
+                        ],
+                        "example": "openai"
+                    },
+                    "model": {
+                        "type": "string",
+                        "description": "Model ID",
+                        "example": "gpt-4o"
+                    },
+                    "api_key": {
+                        "type": "string",
+                        "description": "Your API key (stored only for this request)"
+                    },
+                    "base_url": {
+                        "type": "string",
+                        "description": "Custom API base URL",
+                        "example": "https://api.openai.com/v1"
+                    }
+                }
+            },
+            "SuccessResponse": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["success"],
+                        "description": "Request status"
+                    },
+                    "data": {
+                        "type": "object",
+                        "properties": {
+                            "xml": {
+                                "type": "string",
+                                "description": "Generated draw.io XML diagram"
+                            },
+                            "explanation": {
+                                "type": "string",
+                                "description": "AI explanation of what was generated"
+                            }
+                        },
+                        "required": ["xml"]
+                    }
+                },
+                "required": ["status", "data"]
+            },
+            "ErrorResponse": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["error"],
+                        "description": "Request status"
+                    },
+                    "error": {
+                        "type": "string",
+                        "description": "Error message"
+                    },
+                    "details": {
+                        "type": "array",
+                        "description": "Validation error details (if applicable)",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "explanation": {
+                        "type": "string",
+                        "description": "AI explanation when generation fails"
+                    }
+                },
+                "required": ["status", "error"]
+            }
+        }
+    }
+}

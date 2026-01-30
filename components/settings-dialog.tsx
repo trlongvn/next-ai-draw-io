@@ -1,7 +1,6 @@
 "use client"
 
-import { Github, Info, Moon, Sun, Tag } from "lucide-react"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { Code, Info, Moon, Sun, Tag } from "lucide-react"
 import { Suspense, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -23,8 +22,7 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useDictionary } from "@/hooks/use-dictionary"
-import { getApiEndpoint } from "@/lib/base-path"
-import { i18n, type Locale } from "@/lib/i18n/config"
+import { getApiEndpoint, getBasePath } from "@/lib/base-path"
 import { STORAGE_KEYS } from "@/lib/storage"
 
 // Reusable setting item component for consistent layout
@@ -52,12 +50,6 @@ function SettingItem({
     )
 }
 
-const LANGUAGE_LABELS: Record<Locale, string> = {
-    en: "English",
-    zh: "中文",
-    ja: "日本語",
-}
-
 interface SettingsDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
@@ -67,6 +59,7 @@ interface SettingsDialogProps {
     onToggleDarkMode: () => void
     minimalStyle?: boolean
     onMinimalStyleChange?: (value: boolean) => void
+    onOpenApiDeveloper?: () => void
 }
 
 export const STORAGE_ACCESS_CODE_KEY = "next-ai-draw-io-access-code"
@@ -88,18 +81,15 @@ function SettingsContent({
     onToggleDarkMode,
     minimalStyle = false,
     onMinimalStyleChange = () => {},
+    onOpenApiDeveloper,
 }: SettingsDialogProps) {
     const dict = useDictionary()
-    const router = useRouter()
-    const pathname = usePathname() || "/"
-    const search = useSearchParams()
     const [accessCode, setAccessCode] = useState("")
     const [isVerifying, setIsVerifying] = useState(false)
     const [error, setError] = useState("")
     const [accessCodeRequired, setAccessCodeRequired] = useState(
         () => getStoredAccessCodeRequired() ?? false,
     )
-    const [currentLang, setCurrentLang] = useState("en")
     const [sendShortcut, setSendShortcut] = useState("ctrl-enter")
 
     // Proxy settings state (Electron only)
@@ -130,17 +120,6 @@ function SettingsContent({
             })
     }, [])
 
-    // Detect current language from pathname
-    useEffect(() => {
-        const seg = pathname.split("/").filter(Boolean)
-        const first = seg[0]
-        if (first && i18n.locales.includes(first as Locale)) {
-            setCurrentLang(first)
-        } else {
-            setCurrentLang(i18n.defaultLocale)
-        }
-    }, [pathname])
-
     useEffect(() => {
         if (open) {
             const storedCode =
@@ -163,21 +142,6 @@ function SettingsContent({
             }
         }
     }, [open])
-
-    const changeLanguage = (lang: string) => {
-        // Save locale to localStorage for persistence across restarts
-        localStorage.setItem("next-ai-draw-io-locale", lang)
-
-        const parts = pathname.split("/")
-        if (parts.length > 1 && i18n.locales.includes(parts[1] as Locale)) {
-            parts[1] = lang
-        } else {
-            parts.splice(1, 0, lang)
-        }
-        const newPath = parts.join("/") || "/"
-        const searchStr = search?.toString() ? `?${search.toString()}` : ""
-        router.push(newPath + searchStr)
-    }
 
     const handleSave = async () => {
         if (!accessCodeRequired) return
@@ -316,31 +280,6 @@ function SettingsContent({
                             )}
                         </div>
                     )}
-
-                    {/* Language */}
-                    <SettingItem
-                        label={dict.settings.language}
-                        description={dict.settings.languageDescription}
-                    >
-                        <Select
-                            value={currentLang}
-                            onValueChange={changeLanguage}
-                        >
-                            <SelectTrigger
-                                id="language-select"
-                                className="w-[120px] h-9 rounded-xl"
-                            >
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {i18n.locales.map((locale) => (
-                                    <SelectItem key={locale} value={locale}>
-                                        {LANGUAGE_LABELS[locale]}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </SettingItem>
 
                     {/* Theme */}
                     <SettingItem
@@ -487,6 +426,33 @@ function SettingsContent({
                                 </Button>
                             </div>
                         )}
+
+                    {/* Developer Tools Section */}
+                    {onOpenApiDeveloper && (
+                        <div className="py-4 space-y-3 border-t border-border/50">
+                            <div className="space-y-0.5">
+                                <Label className="text-sm font-medium">
+                                    {dict.settings?.developerTools ||
+                                        "Developer Tools"}
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                    {dict.settings?.developerToolsDescription ||
+                                        "API access and integrations"}
+                                </p>
+                            </div>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    onOpenChange(false)
+                                    onOpenApiDeveloper()
+                                }}
+                                className="w-full h-9"
+                            >
+                                <Code className="h-4 w-4 mr-2" />
+                                {dict.settings?.apiDeveloper || "API"}
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -497,22 +463,12 @@ function SettingsContent({
                         <Tag className="h-3 w-3" />
                         {process.env.APP_VERSION}
                     </span>
-                    <span className="text-muted-foreground">·</span>
-                    <a
-                        href="https://github.com/DayuanJiang/next-ai-draw-io"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                    >
-                        <Github className="h-3 w-3" />
-                        GitHub
-                    </a>
                     {process.env.NEXT_PUBLIC_SHOW_ABOUT_AND_NOTICE ===
                         "true" && (
                         <>
                             <span className="text-muted-foreground">·</span>
                             <a
-                                href={`/${currentLang}/about${currentLang === "zh" ? "/cn" : currentLang === "ja" ? "/ja" : ""}`}
+                                href={`${getBasePath()}/about`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"

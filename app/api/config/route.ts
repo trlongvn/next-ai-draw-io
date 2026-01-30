@@ -6,5 +6,12 @@ export async function GET() {
         dailyRequestLimit: Number(process.env.DAILY_REQUEST_LIMIT) || 0,
         dailyTokenLimit: Number(process.env.DAILY_TOKEN_LIMIT) || 0,
         tpmLimit: Number(process.env.TPM_LIMIT) || 0,
+        // External storage configuration status
+        externalStorageEnabled: process.env.EXTERNAL_STORAGE_ENABLED === "true",
+        externalStorageEndpoint: process.env.EXTERNAL_STORAGE_ENDPOINT_URL
+            ? "configured"
+            : null,
+        // Headless API configuration status
+        headlessApiEnabled: !!process.env.HEADLESS_API_KEY,
     })
 }
