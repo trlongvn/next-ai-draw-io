@@ -52,7 +52,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { useDictionary } from "@/hooks/use-dictionary"
 import type { UseModelConfigReturn } from "@/hooks/use-model-config"
-import { getApiEndpoint } from "@/lib/base-path"
+import { getApiEndpoint, getBasePath } from "@/lib/base-path"
 import { formatMessage } from "@/lib/i18n/utils"
 import type { ProviderConfig, ProviderName } from "@/lib/types/model-config"
 import { PROVIDER_INFO, SUGGESTED_MODELS } from "@/lib/types/model-config"
@@ -320,9 +320,9 @@ export function ModelConfigDialog({
             setValidatingModelIndex(i)
 
             try {
-                // For EdgeOne, construct baseUrl from current origin
+                // For EdgeOne, construct baseUrl from current origin with basePath
                 const baseUrl = isEdgeOne
-                    ? `${window.location.origin}/api/edgeai`
+                    ? `${window.location.origin}${getBasePath()}/api/edgeai`
                     : selectedProvider.baseUrl
 
                 const response = await fetch(
