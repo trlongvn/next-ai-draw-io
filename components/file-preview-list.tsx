@@ -4,7 +4,7 @@ import { FileCode, FileText, Link, Loader2, X } from "lucide-react"
 import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import { useDictionary } from "@/hooks/use-dictionary"
-import { isPdfFile, isTextFile } from "@/lib/pdf-utils"
+import { isDocxFile, isExcelFile, isPdfFile, isTextFile } from "@/lib/pdf-utils"
 
 function formatCharCount(count: number): string {
     if (count >= 1000) {
@@ -115,12 +115,19 @@ export function FilePreviewList({
                                         className="object-cover w-full h-full"
                                         unoptimized
                                     />
-                                ) : isPdfFile(file) || isTextFile(file) ? (
+                                ) : isPdfFile(file) ||
+                                  isTextFile(file) ||
+                                  isDocxFile(file) ||
+                                  isExcelFile(file) ? (
                                     <div className="flex flex-col items-center justify-center h-full p-1">
                                         {pdfInfo?.isExtracting ? (
                                             <Loader2 className="h-6 w-6 text-blue-500 mb-1 animate-spin" />
                                         ) : isPdfFile(file) ? (
                                             <FileText className="h-6 w-6 text-red-500 mb-1" />
+                                        ) : isDocxFile(file) ? (
+                                            <FileText className="h-6 w-6 text-blue-600 mb-1" />
+                                        ) : isExcelFile(file) ? (
+                                            <FileText className="h-6 w-6 text-green-600 mb-1" />
                                         ) : (
                                             <FileCode className="h-6 w-6 text-blue-500 mb-1" />
                                         )}

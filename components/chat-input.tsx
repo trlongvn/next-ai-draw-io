@@ -23,7 +23,7 @@ import { UrlInputDialog } from "@/components/url-input-dialog"
 import { useDiagram } from "@/contexts/diagram-context"
 import { useDictionary } from "@/hooks/use-dictionary"
 import { formatMessage } from "@/lib/i18n/utils"
-import { isPdfFile, isTextFile } from "@/lib/pdf-utils"
+import { isDocxFile, isExcelFile, isPdfFile, isTextFile } from "@/lib/pdf-utils"
 import { STORAGE_KEYS } from "@/lib/storage"
 import type { FlattenedModel } from "@/lib/types/model-config"
 import { extractUrlContent, type UrlData } from "@/lib/url-utils"
@@ -34,7 +34,13 @@ const MAX_IMAGE_SIZE = 2 * 1024 * 1024 // 2MB
 const MAX_FILES = 5
 
 function isValidFileType(file: File): boolean {
-    return file.type.startsWith("image/") || isPdfFile(file) || isTextFile(file)
+    return (
+        file.type.startsWith("image/") ||
+        isPdfFile(file) ||
+        isTextFile(file) ||
+        isDocxFile(file) ||
+        isExcelFile(file)
+    )
 }
 
 function formatFileSize(bytes: number): string {
@@ -87,8 +93,12 @@ function validateFiles(
             )
             continue
         }
-        // Only check size for images (PDFs/text files are extracted client-side, so file size doesn't matter)
-        const isExtractedFile = isPdfFile(file) || isTextFile(file)
+        // Only check size for images (PDFs/text/DOCX/Excel files are extracted client-side, so file size doesn't matter)
+        const isExtractedFile =
+            isPdfFile(file) ||
+            isTextFile(file) ||
+            isDocxFile(file) ||
+            isExcelFile(file)
         if (!isExtractedFile && file.size > MAX_IMAGE_SIZE) {
             const maxSizeMB = MAX_IMAGE_SIZE / 1024 / 1024
             errors.push(
@@ -494,7 +504,7 @@ export function ChatInput({
                             ref={fileInputRef}
                             className="hidden"
                             onChange={handleFileChange}
-                            accept="image/*,.pdf,application/pdf,text/*,.md,.markdown,.json,.csv,.xml,.yaml,.yml,.toml"
+                            accept="image/*,.pdf,application/pdf,.docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/*,.md,.markdown,.json,.csv,.xml,.yaml,.yml,.toml"
                             multiple
                             disabled={isDisabled}
                         />

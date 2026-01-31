@@ -58,13 +58,16 @@ export function ApiDeveloperModal({
 
     // Get the current origin for the API endpoint
     const getFullApiEndpoint = () => {
-        if (typeof window === "undefined") return "/api/v1/generate"
-        return `${window.location.origin}/api/v1/generate`
+        const basePath = getBasePath()
+        if (typeof window === "undefined") return `${basePath}/api/v1/generate`
+        return `${window.location.origin}${basePath}/api/v1/generate`
     }
 
     const getExternalSaveEndpoint = () => {
-        if (typeof window === "undefined") return "/api/v1/external-save"
-        return `${window.location.origin}/api/v1/external-save`
+        const basePath = getBasePath()
+        if (typeof window === "undefined")
+            return `${basePath}/api/v1/external-save`
+        return `${window.location.origin}${basePath}/api/v1/external-save`
     }
 
     const exampleCurl = `curl -X POST ${getFullApiEndpoint()} \\
