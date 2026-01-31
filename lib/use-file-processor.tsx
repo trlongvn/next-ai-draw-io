@@ -3,8 +3,12 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import {
+    extractDocxText,
+    extractExcelText,
     extractPdfText,
     extractTextFileContent,
+    isDocxFile,
+    isExcelFile,
     isPdfFile,
     isTextFile,
     MAX_EXTRACTED_CHARS,
@@ -27,10 +31,14 @@ export function useFileProcessor() {
     const handleFileChange = async (newFiles: File[]) => {
         setFiles(newFiles)
 
-        // Extract text immediately for new PDF/text files
+        // Extract text immediately for new PDF/text/DOCX/Excel files
         for (const file of newFiles) {
             const needsExtraction =
-                (isPdfFile(file) || isTextFile(file)) && !pdfData.has(file)
+                (isPdfFile(file) ||
+                    isTextFile(file) ||
+                    isDocxFile(file) ||
+                    isExcelFile(file)) &&
+                !pdfData.has(file)
             if (needsExtraction) {
                 // Mark as extracting
                 setPdfData((prev) => {
@@ -48,6 +56,10 @@ export function useFileProcessor() {
                     let text: string
                     if (isPdfFile(file)) {
                         text = await extractPdfText(file)
+                    } else if (isDocxFile(file)) {
+                        text = await extractDocxText(file)
+                    } else if (isExcelFile(file)) {
+                        text = await extractExcelText(file)
                     } else {
                         text = await extractTextFileContent(file)
                     }

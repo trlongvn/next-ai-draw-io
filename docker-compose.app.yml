@@ -1,0 +1,15 @@
+services:
+  next-ai-draw-io:
+    image: next-ai-draw-io:proxy-services
+    container_name: next-ai-draw-io-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # Subpath được build vào image, không cần set lại ở đây
+      # NEXT_PUBLIC_BASE_PATH=/proxy-services/apps/next-drawio
+    restart: unless-stopped
+    # Env file cho các biến môi trường khác như AI_MODEL, API keys, etc.
+    env_file:
+      - .env

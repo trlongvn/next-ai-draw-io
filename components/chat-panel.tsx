@@ -9,7 +9,7 @@ import {
     Settings,
 } from "lucide-react"
 import Image from "next/image"
-import { useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import type React from "react"
 import {
     useCallback,
@@ -30,7 +30,7 @@ import { useDiagramToolHandlers } from "@/hooks/use-diagram-tool-handlers"
 import { useDictionary } from "@/hooks/use-dictionary"
 import { getSelectedAIConfig, useModelConfig } from "@/hooks/use-model-config"
 import { useSessionManager } from "@/hooks/use-session-manager"
-import { getApiEndpoint } from "@/lib/base-path"
+import { getApiEndpoint, getAssetUrl } from "@/lib/base-path"
 import { findCachedResponse } from "@/lib/cached-responses"
 import { formatMessage } from "@/lib/i18n/utils"
 import { isPdfFile, isTextFile } from "@/lib/pdf-utils"
@@ -127,6 +127,7 @@ export default function ChatPanel({
 
     const dict = useDictionary()
     const router = useRouter()
+    const pathname = usePathname()
     const searchParams = useSearchParams()
     const urlSessionId = searchParams.get("session")
 
@@ -841,10 +842,10 @@ export default function ChatPanel({
             if (result.wasCurrentSession) {
                 // Deleted current session - clear UI and URL
                 syncUIWithSession(null)
-                router.replace(window.location.pathname, { scroll: false })
+                router.replace(pathname, { scroll: false })
             }
         },
-        [sessionManager, syncUIWithSession, router],
+        [sessionManager, syncUIWithSession, router, pathname],
     )
 
     const handleNewChat = useCallback(async () => {
@@ -875,7 +876,7 @@ export default function ChatPanel({
         toast.success(dict.dialogs.clearSuccess)
 
         // Clear URL param to show blank state
-        router.replace(window.location.pathname, { scroll: false })
+        router.replace(pathname, { scroll: false })
     }, [
         clearDiagram,
         handleFileChange,
@@ -884,6 +885,7 @@ export default function ChatPanel({
         sessionManager,
         messages,
         router,
+        pathname,
         dict.dialogs.clearSuccess,
         buildSessionData,
         setDiagramHistory,
@@ -1189,8 +1191,8 @@ export default function ChatPanel({
                             <Image
                                 src={
                                     darkMode
-                                        ? "/favicon-white.svg"
-                                        : "/favicon.ico"
+                                        ? getAssetUrl("/favicon-white.svg")
+                                        : getAssetUrl("/favicon.ico")
                                 }
                                 alt=""
                                 width={isMobile ? 24 : 28}
