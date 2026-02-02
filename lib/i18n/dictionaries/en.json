@@ -39,7 +39,7 @@
         "clearConversation": "Clear conversation",
         "diagramHistory": "Diagram history",
         "saveDiagram": "Save diagram",
-        "uploadFile": "Upload file (image, PDF, text)",
+        "uploadFile": "Upload file (image, PDF, DOCX, Excel, text)",
         "minimalStyle": "Minimal",
         "styledMode": "Styled",
         "minimalTooltip": "Use minimal for faster generation (no colors)",

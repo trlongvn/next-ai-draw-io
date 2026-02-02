@@ -33,7 +33,7 @@ import { useSessionManager } from "@/hooks/use-session-manager"
 import { getApiEndpoint, getAssetUrl } from "@/lib/base-path"
 import { findCachedResponse } from "@/lib/cached-responses"
 import { formatMessage } from "@/lib/i18n/utils"
-import { isPdfFile, isTextFile } from "@/lib/pdf-utils"
+import { isDocxFile, isExcelFile, isPdfFile, isTextFile } from "@/lib/pdf-utils"
 import { sanitizeMessages } from "@/lib/session-storage"
 import type { UrlData } from "@/lib/url-utils"
 import { type FileData, useFileProcessor } from "@/lib/use-file-processor"
@@ -1003,6 +1003,16 @@ export default function ChatPanel({
                 const extracted = pdfData.get(file)
                 if (extracted?.text) {
                     userText += `\n\n[PDF: ${file.name}]\n${extracted.text}`
+                }
+            } else if (isDocxFile(file)) {
+                const extracted = pdfData.get(file)
+                if (extracted?.text) {
+                    userText += `\n\n[DOCX: ${file.name}]\n${extracted.text}`
+                }
+            } else if (isExcelFile(file)) {
+                const extracted = pdfData.get(file)
+                if (extracted?.text) {
+                    userText += `\n\n[Excel: ${file.name}]\n${extracted.text}`
                 }
             } else if (isTextFile(file)) {
                 const extracted = pdfData.get(file)

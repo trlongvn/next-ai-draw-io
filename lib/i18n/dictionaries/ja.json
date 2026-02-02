@@ -39,7 +39,7 @@
         "clearConversation": "会話をクリア",
         "diagramHistory": "ダイアグラム履歴",
         "saveDiagram": "ダイアグラムを保存",
-        "uploadFile": "ファイルをアップロード（画像、PDF、テキスト）",
+        "uploadFile": "ファイルをアップロード（画像、PDF、Word、Excel、テキスト）",
         "minimalStyle": "ミニマル",
         "styledMode": "スタイル付き",
         "minimalTooltip": "高速生成のためミニマルを使用（色なし）",
