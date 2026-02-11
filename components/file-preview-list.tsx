@@ -4,7 +4,7 @@ import { FileCode, FileText, Link, Loader2, X } from "lucide-react"
 import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import { useDictionary } from "@/hooks/use-dictionary"
-import { isDocxFile, isExcelFile, isPdfFile, isTextFile } from "@/lib/pdf-utils"
+import { isDocxFile, isExcelFile, isPdfFile, isScannableImage, isTextFile } from "@/lib/pdf-utils"
 
 function formatCharCount(count: number): string {
     if (count >= 1000) {
@@ -18,7 +18,7 @@ interface FilePreviewListProps {
     onRemoveFile: (fileToRemove: File) => void
     pdfData?: Map<
         File,
-        { text: string; charCount: number; isExtracting: boolean }
+        { text: string; charCount: number; isExtracting: boolean; isOcr?: boolean }
     >
     urlData?: Map<
         string,
@@ -96,29 +96,23 @@ export function FilePreviewList({
                         <div key={file.name + index} className="relative group">
                             <div
                                 className={`w-20 h-20 border rounded-md overflow-hidden bg-muted ${
-                                    file.type.startsWith("image/") && imageUrl
+                                    file.type.startsWith("image/") && imageUrl && !isScannableImage(file)
                                         ? "cursor-pointer"
                                         : ""
                                 }`}
                                 onClick={() =>
                                     file.type.startsWith("image/") &&
                                     imageUrl &&
+                                    !isScannableImage(file) &&
                                     setSelectedImage(imageUrl)
                                 }
                             >
-                                {file.type.startsWith("image/") && imageUrl ? (
-                                    <Image
-                                        src={imageUrl}
-                                        alt={file.name}
-                                        width={80}
-                                        height={80}
-                                        className="object-cover w-full h-full"
-                                        unoptimized
-                                    />
-                                ) : isPdfFile(file) ||
+                                {/* Show OCR UI for scannable images, or extraction UI for documents */}
+                                {isPdfFile(file) ||
                                   isTextFile(file) ||
                                   isDocxFile(file) ||
-                                  isExcelFile(file) ? (
+                                  isExcelFile(file) ||
+                                  isScannableImage(file) ? (
                                     <div className="flex flex-col items-center justify-center h-full p-1">
                                         {pdfInfo?.isExtracting ? (
                                             <Loader2 className="h-6 w-6 text-blue-500 mb-1 animate-spin" />
@@ -128,6 +122,8 @@ export function FilePreviewList({
                                             <FileText className="h-6 w-6 text-blue-600 mb-1" />
                                         ) : isExcelFile(file) ? (
                                             <FileText className="h-6 w-6 text-green-600 mb-1" />
+                                        ) : isScannableImage(file) ? (
+                                            <FileText className="h-6 w-6 text-purple-500 mb-1" />
                                         ) : (
                                             <FileCode className="h-6 w-6 text-blue-500 mb-1" />
                                         )}
@@ -138,10 +134,11 @@ export function FilePreviewList({
                                         </span>
                                         {pdfInfo?.isExtracting ? (
                                             <span className="text-[10px] text-muted-foreground">
-                                                {dict.file.reading}
+                                                {isScannableImage(file) ? dict.file.ocrReading : dict.file.reading}
                                             </span>
                                         ) : pdfInfo?.charCount ? (
                                             <span className="text-[10px] text-green-600 font-medium">
+                                                {pdfInfo.isOcr && "OCR: "}
                                                 {formatCharCount(
                                                     pdfInfo.charCount,
                                                 )}{" "}
@@ -149,6 +146,15 @@ export function FilePreviewList({
                                             </span>
                                         ) : null}
                                     </div>
+                                ) : file.type.startsWith("image/") && imageUrl ? (
+                                    <Image
+                                        src={imageUrl}
+                                        alt={file.name}
+                                        width={80}
+                                        height={80}
+                                        className="object-cover w-full h-full"
+                                        unoptimized
+                                    />
                                 ) : (
                                     <div className="flex items-center justify-center h-full text-xs text-center p-1">
                                         {file.name}

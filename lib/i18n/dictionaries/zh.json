@@ -130,7 +130,11 @@
         "formats": {
             "drawio": "Draw.io XML",
             "png": "PNG 图片",
-            "svg": "SVG 图片"
+            "svg": "SVG 图片",
+            "json": "JSON 架构",
+            "postgresqlSql": "PostgreSQL SQL",
+            "mssqlSql": "MSSQL SQL",
+            "uipathXaml": "UiPath Workflow (.xaml)"
         },
         "savedSuccessfully": "保存成功！",
         "saveToCloud": "保存到云端",
@@ -201,6 +205,7 @@
     },
     "file": {
         "reading": "读取中...",
+        "ocrReading": "OCR识别中...",
         "chars": "字符",
         "removeFile": "移除文件"
     },

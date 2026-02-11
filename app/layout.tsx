@@ -2,6 +2,7 @@ import { GoogleAnalytics } from "@next/third-parties/google"
 import type { Metadata, Viewport } from "next"
 import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google"
 import { DiagramProvider } from "@/contexts/diagram-context"
+import { SchemaProvider } from "@/contexts/schema-context"
 import { DictionaryProvider } from "@/hooks/use-dictionary"
 import { i18n } from "@/lib/i18n/config"
 import { getDictionary } from "@/lib/i18n/dictionaries"
@@ -118,7 +119,9 @@ export default async function RootLayout({
                 className={`${plusJakarta.variable} ${jetbrainsMono.variable} antialiased`}
             >
                 <DictionaryProvider dictionary={dictionary}>
-                    <DiagramProvider>{children}</DiagramProvider>
+                    <DiagramProvider>
+                        <SchemaProvider>{children}</SchemaProvider>
+                    </DiagramProvider>
                 </DictionaryProvider>
             </body>
             {process.env.NEXT_PUBLIC_GA_ID && (

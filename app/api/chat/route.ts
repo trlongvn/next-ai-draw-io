@@ -35,7 +35,7 @@ import {
     wrapWithObserve,
 } from "@/lib/langfuse"
 import { findServerModelById } from "@/lib/server-model-config"
-import { getSystemPrompt } from "@/lib/system-prompts"
+import { getSystemPrompt, getDrawDBSystemPrompt } from "@/lib/system-prompts"
 import { getUserIdFromRequest } from "@/lib/user-id"
 
 export const maxDuration = 120
@@ -89,7 +89,10 @@ async function handleChatRequest(req: Request): Promise<Response> {
         }
     }
 
-    const { messages, xml, previousXml, sessionId } = await req.json()
+    const { messages, xml, previousXml, sessionId, editorMode } = await req.json()
+
+    // Determine if we're in DrawDB schema mode
+    const isSchemaMode = editorMode === "drawdb"
 
     // Get user ID for Langfuse tracking and quota
     const userId = getUserIdFromRequest(req)
@@ -241,8 +244,10 @@ async function handleChatRequest(req: Request): Promise<Response> {
         `[Prompt Caching] ${shouldCache ? "ENABLED" : "DISABLED"} for model: ${modelId}`,
     )
 
-    // Get the appropriate system prompt based on model (extended for Opus/Haiku 4.5)
-    const systemMessage = getSystemPrompt(modelId, minimalStyle)
+    // Get the appropriate system prompt based on model and editor mode
+    const systemMessage = isSchemaMode
+        ? getDrawDBSystemPrompt(modelId)
+        : getSystemPrompt(modelId, minimalStyle)
 
     // Extract file parts (images) from the last user message
     const fileParts =
@@ -419,28 +424,56 @@ ${userInputText}
     // - Breakpoint 2: Current XML context - changes per diagram, but constant within a conversation turn
     // This allows: if only user message changes, both system caches are reused
     //              if XML changes, instruction cache is still reused
-    const systemMessages = [
-        // Cache breakpoint 1: Instructions (rarely change)
-        {
-            role: "system" as const,
-            content: systemMessage,
-            ...(shouldCache && {
-                providerOptions: {
-                    bedrock: { cachePoint: { type: "default" } },
-                },
-            }),
-        },
-        // Cache breakpoint 2: Previous and Current diagram XML context
-        {
-            role: "system" as const,
-            content: `${previousXml ? `Previous diagram XML (before user's last message):\n"""xml\n${previousXml}\n"""\n\n` : ""}Current diagram XML (AUTHORITATIVE - the source of truth):\n"""xml\n${xml || ""}\n"""\n\nIMPORTANT: The "Current diagram XML" is the SINGLE SOURCE OF TRUTH for what's on the canvas right now. The user can manually add, delete, or modify shapes directly in draw.io. Always count and describe elements based on the CURRENT XML, not on what you previously generated. If both previous and current XML are shown, compare them to understand what the user changed. When using edit_diagram, COPY search patterns exactly from the CURRENT XML - attribute order matters!`,
-            ...(shouldCache && {
-                providerOptions: {
-                    bedrock: { cachePoint: { type: "default" } },
-                },
-            }),
-        },
-    ]
+    const systemMessages = isSchemaMode
+        ? [
+              // Schema mode: just the DrawDB system prompt
+              {
+                  role: "system" as const,
+                  content: systemMessage,
+                  ...(shouldCache && {
+                      providerOptions: {
+                          bedrock: { cachePoint: { type: "default" } },
+                      },
+                  }),
+              },
+              // Current schema context (if any)
+              ...(xml
+                  ? [
+                        {
+                            role: "system" as const,
+                            content: `Current database schema JSON:\n"""json\n${xml}\n"""\n\nIMPORTANT: The above is the current schema displayed in the editor. When modifying, generate a complete new schema via display_schema.`,
+                            ...(shouldCache && {
+                                providerOptions: {
+                                    bedrock: {
+                                        cachePoint: { type: "default" },
+                                    },
+                                },
+                            }),
+                        },
+                    ]
+                  : []),
+          ]
+        : [
+              // Draw.io mode: original behavior
+              {
+                  role: "system" as const,
+                  content: systemMessage,
+                  ...(shouldCache && {
+                      providerOptions: {
+                          bedrock: { cachePoint: { type: "default" } },
+                      },
+                  }),
+              },
+              {
+                  role: "system" as const,
+                  content: `${previousXml ? `Previous diagram XML (before user's last message):\n"""xml\n${previousXml}\n"""\n\n` : ""}Current diagram XML (AUTHORITATIVE - the source of truth):\n"""xml\n${xml || ""}\n"""\n\nIMPORTANT: The "Current diagram XML" is the SINGLE SOURCE OF TRUTH for what's on the canvas right now. The user can manually add, delete, or modify shapes directly in draw.io. Always count and describe elements based on the CURRENT XML, not on what you previously generated. If both previous and current XML are shown, compare them to understand what the user changed. When using edit_diagram, COPY search patterns exactly from the CURRENT XML - attribute order matters!`,
+                  ...(shouldCache && {
+                      providerOptions: {
+                          bedrock: { cachePoint: { type: "default" } },
+                      },
+                  }),
+              },
+          ]
 
     const allMessages = [...systemMessages, ...enhancedMessages]
 
@@ -549,8 +582,29 @@ ${userInputText}
                 recordTokenUsage(userId, totalTokens)
             }
         },
-        tools: {
-            // Client-side tool that will be executed on the client
+        tools: isSchemaMode
+            ? {
+                  // DrawDB schema mode - only display_schema tool
+                  display_schema: {
+                      description: `Display a database schema as an ER diagram. Generate a complete JSON schema with tables, fields, and relationships.
+
+The schema JSON must follow this structure:
+{
+  "database": "postgresql",
+  "tables": [{ "id": "unique_id", "name": "table_name", "x": 50, "y": 50, "fields": [{ "id": "field_id", "name": "column_name", "type": "VARCHAR(255)", "primary": true, "notNull": true }] }],
+  "relationships": [{ "id": "rel_id", "startTableId": "table1", "endTableId": "table2", "startFieldId": "field1", "endFieldId": "field2", "cardinality": "one-to-many" }]
+}`,
+                      inputSchema: z.object({
+                          schema: z
+                              .string()
+                              .describe(
+                                  "JSON string of the database schema with tables, fields, and relationships",
+                              ),
+                      }),
+                  },
+              }
+            : {
+            // Draw.io mode - original tools
             display_diagram: {
                 description: `Display a diagram on draw.io. Pass ONLY the mxCell elements - wrapper tags and root cells are added automatically.
 

@@ -19,6 +19,9 @@ export interface ChatSession {
     diagramXml: string
     thumbnailDataUrl?: string // Small PNG preview of the diagram
     diagramHistory?: { svg: string; xml: string }[] // Version history of diagram edits
+    svg: string
+    xml: string
+    editorMode?: "drawio" | "drawdb"
 }
 
 export interface StoredMessage {
@@ -35,6 +38,7 @@ export interface SessionMetadata {
     messageCount: number
     hasDiagram: boolean
     thumbnailDataUrl?: string
+    editorMode?: "drawio" | "drawdb"
 }
 
 interface ChatSessionDB extends DBSchema {
@@ -96,6 +100,7 @@ export async function getAllSessionMetadata(): Promise<SessionMetadata[]> {
                 messageCount: s.messages.length,
                 hasDiagram: !!s.diagramXml && s.diagramXml.trim().length > 0,
                 thumbnailDataUrl: s.thumbnailDataUrl,
+                editorMode: s.editorMode,
             })
             cursor = await cursor.continue()
         }
@@ -208,9 +213,11 @@ export function createEmptySession(): ChatSession {
         messages: [],
         xmlSnapshots: [],
         diagramXml: "",
+        svg: "",
+        xml: "",
+        editorMode: "drawio",
     }
 }
-
 // Helper: Extract title from first user message (truncated to reasonable length)
 const MAX_TITLE_LENGTH = 100
 
@@ -298,6 +305,9 @@ export async function migrateFromLocalStorage(): Promise<string | null> {
                         ? JSON.parse(savedSnapshots)
                         : [],
                     diagramXml: savedXml || "",
+                    svg: "",
+                    xml: "",
+                    editorMode: "drawio",
                 }
                 const saved = await saveSession(session)
                 if (saved) {

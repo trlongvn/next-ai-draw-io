@@ -130,7 +130,11 @@
         "formats": {
             "drawio": "Draw.io XML",
             "png": "PNG 画像",
-            "svg": "SVG 画像"
+            "svg": "SVG 画像",
+            "json": "JSON スキーマ",
+            "postgresqlSql": "PostgreSQL SQL",
+            "mssqlSql": "MSSQL SQL",
+            "uipathXaml": "UiPath Workflow (.xaml)"
         },
         "savedSuccessfully": "保存完了！",
         "saveToCloud": "クラウドに保存",
@@ -201,6 +205,7 @@
     },
     "file": {
         "reading": "読み込み中...",
+        "ocrReading": "OCR処理中...",
         "chars": "文字",
         "removeFile": "ファイルを削除"
     },

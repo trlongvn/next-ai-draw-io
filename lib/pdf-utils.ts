@@ -45,6 +45,27 @@ const DOCX_EXTENSIONS = [".docx", ".doc"]
 // Excel extensions
 const EXCEL_EXTENSIONS = [".xlsx", ".xls", ".csv"]
 
+// OCR-able image extensions (for scanned document recognition)
+export const SCANNABLE_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff", ".tif"]
+const SCANNABLE_IMAGE_MIME_TYPES = [
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    "image/bmp",
+    "image/tiff",
+]
+
+/**
+ * Check if a file is an image that can be processed by OCR for text extraction
+ */
+export function isScannableImage(file: File): boolean {
+    const name = file.name.toLowerCase()
+    return (
+        SCANNABLE_IMAGE_MIME_TYPES.includes(file.type) ||
+        SCANNABLE_IMAGE_EXTENSIONS.some((ext) => name.endsWith(ext))
+    )
+}
+
 /**
  * Extract text content from a PDF file
  * Uses unpdf library for client-side extraction

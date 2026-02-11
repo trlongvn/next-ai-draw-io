@@ -4,7 +4,7 @@
 
 ```bash
 docker build \
-  --build-arg NEXT_PUBLIC_BASE_PATH=/proxy-services/apps/next-drawio \
+  --build-arg NEXT_PUBLIC_BASE_PATH=/proxy-service/apps/next-drawio \
   --build-arg NEXT_PUBLIC_DRAWIO_BASE_URL=https://embed.diagrams.net \
   -t next-ai-draw-io:proxy-services \
   .
@@ -27,7 +27,7 @@ docker run -d \
 ```
 
 ## Nginx Proxy Pass Configuration
-
+    
 Tạo nginx config trên host để proxy tới container:
 
 ```nginx
@@ -35,7 +35,7 @@ server {
     listen 80;
     server_name your-domain.com;
 
-    location /proxy-services/apps/next-drawio {
+    location /proxy-service/apps/next-drawio {
         # Proxy tới container
         proxy_pass http://localhost:3000;
         
@@ -58,12 +58,12 @@ server {
 
 ## URLs
 
-- Container URL: `http://localhost:3000/proxy-services/apps/next-drawio`
-- Via Nginx Proxy: `http://your-domain.com/proxy-services/apps/next-drawio`
+- Container URL: `http://localhost:3000/proxy-service/apps/next-drawio`
+- Via Nginx Proxy: `http://your-domain.com/proxy-service/apps/next-drawio`
 
 ## Notes
 
-- Subpath `/proxy-services/apps/next-drawio` đã được build vào image
+- Subpath `/proxy-service/apps/next-drawio` đã được build vào image
 - Container expose port 3000
 - Nginx trên host sẽ proxy từ external URL tới container
 - Đảm bảo file `.env` có đầy đủ các biến môi trường cần thiết (AI_MODEL, API keys, etc.)

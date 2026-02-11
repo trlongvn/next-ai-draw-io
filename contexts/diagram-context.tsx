@@ -2,6 +2,8 @@
 
 import type React from "react"
 import { createContext, useContext, useEffect, useRef, useState } from "react"
+import { UiPathGenerator } from "@/lib/uipath-utils"
+import { useSessionManager } from "@/hooks/use-session-manager"
 import type { DrawIoEmbedRef } from "react-drawio"
 import { toast } from "sonner"
 import type { ExportFormat } from "@/components/save-dialog"
@@ -30,6 +32,7 @@ interface DiagramContextType {
         sessionId?: string,
         successMessage?: string,
     ) => void
+    loadReFrameworkTemplate: () => void
     getThumbnailSvg: () => Promise<string | null>
     isDrawioReady: boolean
     onDrawioLoad: () => void
@@ -234,6 +237,15 @@ export function DiagramProvider({ children }: { children: React.ReactNode }) {
         setDiagramHistory([])
     }
 
+    const loadReFrameworkTemplate = () => {
+        const generator = new UiPathGenerator()
+        const template = generator.getReFrameworkTemplate()
+        // Wrap with mxfile structure as expected by loadDiagram/draw.io
+        const fullXml = `<mxfile><diagram name="ReFramework" id="re-framework">${template}</diagram></mxfile>`
+        loadDiagram(fullXml, true)
+        toast.success("Loaded ReFramework Template")
+    }
+
     const saveDiagramToFile = (
         filename: string,
         format: ExportFormat,
@@ -246,7 +258,18 @@ export function DiagramProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Map format to draw.io export format
-        const drawioFormat = format === "drawio" ? "xmlsvg" : format
+        if (
+            format === "json" ||
+            format === "postgresql-sql" ||
+            format === "mssql-sql"
+        ) {
+            console.warn("Invalid format for draw.io export:", format)
+            return
+        }
+
+        const drawioFormat = (
+            format === "drawio" || format === "uipath-xaml" ? "xmlsvg" : format
+        ) as "xmlsvg" | "png" | "svg"
 
         // Set up the resolver before triggering export
         saveResolverRef.current = {
@@ -265,6 +288,12 @@ export function DiagramProvider({ children }: { children: React.ReactNode }) {
                     fileContent = xmlContent
                     mimeType = "application/xml"
                     extension = ".drawio"
+                } else if (format === "uipath-xaml") {
+                   const xml = extractDiagramXML(exportData)
+                   const generator = new UiPathGenerator()
+                   fileContent = generator.generate(xml)
+                   mimeType = "application/xaml+xml"
+                   extension = ".xaml"
                 } else if (format === "png") {
                     // PNG data comes as base64 data URL
                     fileContent = exportData
@@ -352,6 +381,7 @@ export function DiagramProvider({ children }: { children: React.ReactNode }) {
                 handleDiagramExport,
                 clearDiagram,
                 saveDiagramToFile,
+                loadReFrameworkTemplate,
                 getThumbnailSvg,
                 isDrawioReady,
                 onDrawioLoad,

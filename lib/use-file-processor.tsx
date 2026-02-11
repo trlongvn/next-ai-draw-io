@@ -10,19 +10,22 @@ import {
     isDocxFile,
     isExcelFile,
     isPdfFile,
+    isScannableImage,
     isTextFile,
     MAX_EXTRACTED_CHARS,
 } from "@/lib/pdf-utils"
+import { extractTextFromImage, isPdfLikelyScanned } from "@/lib/ocr-utils"
 
 export interface FileData {
     text: string
     charCount: number
     isExtracting: boolean
+    isOcr?: boolean // Whether text was extracted via OCR
 }
 
 /**
- * Hook for processing file uploads, especially PDFs and text files.
- * Handles text extraction, character limit validation, and cleanup.
+ * Hook for processing file uploads, including PDFs, text files, and scanned images.
+ * Handles text extraction (including OCR), character limit validation, and cleanup.
  */
 export function useFileProcessor() {
     const [files, setFiles] = useState<File[]>([])
@@ -31,13 +34,14 @@ export function useFileProcessor() {
     const handleFileChange = async (newFiles: File[]) => {
         setFiles(newFiles)
 
-        // Extract text immediately for new PDF/text/DOCX/Excel files
+        // Extract text immediately for new PDF/text/DOCX/Excel/scanned image files
         for (const file of newFiles) {
             const needsExtraction =
                 (isPdfFile(file) ||
                     isTextFile(file) ||
                     isDocxFile(file) ||
-                    isExcelFile(file)) &&
+                    isExcelFile(file) ||
+                    isScannableImage(file)) &&
                 !pdfData.has(file)
             if (needsExtraction) {
                 // Mark as extracting
@@ -54,8 +58,20 @@ export function useFileProcessor() {
                 // Extract text asynchronously
                 try {
                     let text: string
-                    if (isPdfFile(file)) {
+                    let isOcr = false
+                    
+                    if (isScannableImage(file)) {
+                        // Use OCR for scanned images
+                        text = await extractTextFromImage(file)
+                        isOcr = true
+                    } else if (isPdfFile(file)) {
                         text = await extractPdfText(file)
+                        // If PDF has very little text, try OCR (it might be scanned)
+                        if (isPdfLikelyScanned(text)) {
+                            console.log(`PDF ${file.name} appears to be scanned, OCR not yet supported for PDFs`)
+                            // For now, just use the minimal text extracted
+                            // Future enhancement: convert PDF pages to images and OCR them
+                        }
                     } else if (isDocxFile(file)) {
                         text = await extractDocxText(file)
                     } else if (isExcelFile(file)) {
@@ -86,6 +102,7 @@ export function useFileProcessor() {
                             text,
                             charCount: text.length,
                             isExtracting: false,
+                            isOcr,
                         })
                         return next
                     })

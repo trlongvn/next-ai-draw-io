@@ -7,6 +7,7 @@ import {
     PanelRightClose,
     PanelRightOpen,
     Settings,
+    FileCode,
 } from "lucide-react"
 import Image from "next/image"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
@@ -26,7 +27,9 @@ import { ApiDeveloperModal } from "@/components/modals/ApiDeveloperModal"
 import { ModelConfigDialog } from "@/components/model-config-dialog"
 import { SettingsDialog } from "@/components/settings-dialog"
 import { useDiagram } from "@/contexts/diagram-context"
+import { useSchema } from "@/contexts/schema-context"
 import { useDiagramToolHandlers } from "@/hooks/use-diagram-tool-handlers"
+import { useSchemaToolHandlers } from "@/hooks/use-schema-tool-handlers"
 import { useDictionary } from "@/hooks/use-dictionary"
 import { getSelectedAIConfig, useModelConfig } from "@/hooks/use-model-config"
 import { useSessionManager } from "@/hooks/use-session-manager"
@@ -39,6 +42,7 @@ import type { UrlData } from "@/lib/url-utils"
 import { type FileData, useFileProcessor } from "@/lib/use-file-processor"
 import { useQuotaManager } from "@/lib/use-quota-manager"
 import { cn, formatXML, isRealDiagram } from "@/lib/utils"
+import type { DrawDBSchema } from "@/lib/drawdb-utils"
 import { ChatMessageDisplay } from "./chat-message-display"
 import { DevXmlSimulator } from "./dev-xml-simulator"
 
@@ -71,6 +75,8 @@ interface ChatPanelProps {
     darkMode: boolean
     onToggleDarkMode: () => void
     isMobile?: boolean
+    editorMode?: "drawio" | "drawdb"
+    onEditorModeChange?: (mode: "drawio" | "drawdb") => void
 }
 
 // Constants for tool states
@@ -111,6 +117,8 @@ export default function ChatPanel({
     darkMode,
     onToggleDarkMode,
     isMobile = false,
+    editorMode = "drawio",
+    onEditorModeChange,
 }: ChatPanelProps) {
     const {
         loadDiagram: onDisplayChart,
@@ -123,6 +131,8 @@ export default function ChatPanel({
         getThumbnailSvg,
         diagramHistory,
         setDiagramHistory,
+        isDrawioReady,
+        loadReFrameworkTemplate,
     } = useDiagram()
 
     const dict = useDictionary()
@@ -277,7 +287,7 @@ export default function ChatPanel({
     const LOCAL_STORAGE_DEBOUNCE_MS = 1000 // Save at most once per second
 
     // Diagram tool handlers (display_diagram, edit_diagram, append_diagram)
-    const { handleToolCall } = useDiagramToolHandlers({
+    const { handleToolCall: handleDiagramToolCall } = useDiagramToolHandlers({
         partialXmlRef,
         editDiagramOriginalXmlRef,
         chartXMLRef,
@@ -286,13 +296,36 @@ export default function ChatPanel({
         onExport,
     })
 
+    // Schema tool handlers (display_schema) for DrawDB mode
+    const { loadSchema, exportJSON, clearSchema } = useSchema()
+
+    // Wrapper to keep chartXMLRef in sync with loaded schema
+    const handleLoadSchema = useCallback(
+        (schema: DrawDBSchema) => {
+            const result = loadSchema(schema)
+            // Update ref so session manager saves the correct data
+            chartXMLRef.current = JSON.stringify(schema)
+            return result
+        },
+        [loadSchema],
+    )
+
+    const { handleToolCall: handleSchemaToolCall } = useSchemaToolHandlers({
+        onDisplaySchema: handleLoadSchema,
+    })
+
     const { messages, sendMessage, addToolOutput, status, error, setMessages } =
         useChat({
             transport: new DefaultChatTransport({
                 api: getApiEndpoint("/api/chat"),
             }),
             onToolCall: async ({ toolCall }) => {
-                await handleToolCall({ toolCall }, addToolOutput)
+                // Dispatch to appropriate tool handler based on editor mode
+                if (editorMode === "drawdb") {
+                    await handleSchemaToolCall({ toolCall }, addToolOutput)
+                } else {
+                    await handleDiagramToolCall({ toolCall }, addToolOutput)
+                }
             },
             onError: (error) => {
                 // Handle server-side quota limit (429 response)
@@ -446,6 +479,17 @@ export default function ChatPanel({
     const loadedMessageIdsRef = useRef<Set<string>>(new Set())
     // Track when session was just loaded (to skip auto-save on load)
     const justLoadedSessionRef = useRef(false)
+    // Track pending diagram XML to load when Draw.io becomes ready
+    const pendingDiagramXmlRef = useRef<string | null>(null)
+
+    // Effect to load pending diagram when Draw.io becomes ready
+    useEffect(() => {
+        if (isDrawioReady && pendingDiagramXmlRef.current) {
+            onDisplayChart(pendingDiagramXmlRef.current, true)
+            chartXMLRef.current = pendingDiagramXmlRef.current
+            pendingDiagramXmlRef.current = null
+        }
+    }, [isDrawioReady, onDisplayChart])
 
     const syncUIWithSession = useCallback(
         (
@@ -454,6 +498,7 @@ export default function ChatPanel({
                 xmlSnapshots: [number, string][]
                 diagramXml: string
                 diagramHistory?: { svg: string; xml: string }[]
+                editorMode?: "drawio" | "drawdb"
             } | null,
         ) => {
             const hasRealDiagram = isRealDiagram(data?.diagramXml)
@@ -466,9 +511,30 @@ export default function ChatPanel({
                 setMessages(data.messages as any)
                 xmlSnapshotsRef.current = new Map(data.xmlSnapshots)
                 if (hasRealDiagram) {
-                    onDisplayChart(data.diagramXml, true)
+                    // Restore editor mode (default to drawio if missing)
+                    const mode = data.editorMode || "drawio"
+                    if (mode === "drawdb") {
+                        try {
+                            const schema = JSON.parse(data.diagramXml)
+                            // Load schema into context (will sync via currentSchema prop in page.tsx)
+                            loadSchema(schema, true)
+                            // Clear Draw.io diagram when in DrawDB mode
+                            clearDiagram()
+                        } catch (e) {
+                            console.error("Failed to parse schema JSON:", e)
+                        }
+                    } else {
+                        if (isDrawioReady) {
+                            onDisplayChart(data.diagramXml, true)
+                        } else {
+                            // Queue for loading when Draw.io is ready
+                            pendingDiagramXmlRef.current = data.diagramXml
+                        }
+                        clearSchema()
+                    }
                     chartXMLRef.current = data.diagramXml
                 } else {
+                    clearSchema()
                     clearDiagram()
                     // Clear refs to prevent stale data from being saved
                     chartXMLRef.current = ""
@@ -478,15 +544,18 @@ export default function ChatPanel({
             } else {
                 loadedMessageIdsRef.current = new Set()
                 setMessages([])
-                xmlSnapshotsRef.current.clear()
+                xmlSnapshotsRef.current = new Map()
+                
+                clearSchema()
                 clearDiagram()
+                
                 // Clear refs to prevent stale data from being saved
                 chartXMLRef.current = ""
                 latestSvgRef.current = ""
                 setDiagramHistory([])
             }
         },
-        [setMessages, onDisplayChart, clearDiagram, setDiagramHistory],
+        [setMessages, onDisplayChart, clearDiagram, setDiagramHistory, loadSchema, clearSchema],
     )
 
     // Helper: Build session data object for saving (eliminates duplication)
@@ -512,6 +581,7 @@ export default function ChatPanel({
                 diagramXml: currentDiagramXml,
                 thumbnailDataUrl,
                 diagramHistory,
+                editorMode,
             }
         },
         [diagramHistory, getThumbnailSvg],
@@ -750,8 +820,14 @@ export default function ChatPanel({
             }
 
             try {
-                let chartXml = await onFetchChart()
-                chartXml = formatXML(chartXml)
+                // In DrawDB mode, skip Draw.io export (not mounted) and use schema JSON
+                let chartXml: string
+                if (editorMode === "drawdb") {
+                    chartXml = exportJSON() || ""
+                } else {
+                    chartXml = await onFetchChart()
+                    chartXml = formatXML(chartXml)
+                }
 
                 // Update ref directly to avoid race condition with React's async state update
                 // This ensures edit_diagram has the correct XML before AI responds
@@ -915,7 +991,21 @@ export default function ChatPanel({
 
     // Restore diagram from snapshot and update ref
     const restoreDiagramFromSnapshot = (savedXml: string) => {
-        onDisplayChart(savedXml, true) // Skip validation for trusted snapshots
+        if (editorMode === "drawdb") {
+            try {
+                const schema = JSON.parse(savedXml)
+                loadSchema(schema, true)
+            } catch (e) {
+                console.error("Failed to restore schema form snapshot:", e)
+            }
+        } else {
+            if (isDrawioReady) {
+                onDisplayChart(savedXml, true) // Skip validation for trusted snapshots
+            } else {
+                console.warn("Draw.io not ready, queuing snapshot restore")
+                pendingDiagramXmlRef.current = savedXml
+            }
+        }
         chartXMLRef.current = savedXml
     }
 
@@ -945,7 +1035,7 @@ export default function ChatPanel({
         sendMessage(
             { parts },
             {
-                body: { xml, previousXml, sessionId },
+                body: { xml, previousXml, sessionId, editorMode },
                 headers: {
                     "x-access-code": config.accessCode,
                     ...(config.aiProvider && {
@@ -1229,6 +1319,19 @@ export default function ChatPanel({
                         </ButtonWithTooltip>
 
                         <ButtonWithTooltip
+                            tooltipContent="Load UiPath ReFramework Template"
+                            variant="ghost"
+                            size="icon"
+                            onClick={loadReFrameworkTemplate}
+                            disabled={editorMode === "drawdb"}
+                            className="hover:bg-accent"
+                        >
+                            <FileCode
+                                className={`${isMobile ? "h-4 w-4" : "h-5 w-5"} text-muted-foreground`}
+                            />
+                        </ButtonWithTooltip>
+
+                        <ButtonWithTooltip
                             tooltipContent={dict.nav.settings}
                             variant="ghost"
                             size="icon"
@@ -1304,6 +1407,7 @@ export default function ChatPanel({
                     onUrlChange={setUrlData}
                     sessionId={sessionId}
                     error={error}
+                    editorMode={editorMode}
                     models={modelConfig.models}
                     selectedModelId={modelConfig.selectedModelId}
                     onModelSelect={modelConfig.setSelectedModelId}

@@ -4,16 +4,21 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { DrawIoEmbed } from "react-drawio"
 import type { ImperativePanelHandle } from "react-resizable-panels"
 import ChatPanel from "@/components/chat-panel"
+import { ERDiagram, type ERDiagramRef } from "@/components/er-diagram"
 import {
     ResizableHandle,
     ResizablePanel,
     ResizablePanelGroup,
 } from "@/components/ui/resizable"
 import { useDiagram } from "@/contexts/diagram-context"
+import { useSchema } from "@/contexts/schema-context"
 import { i18n, type Locale } from "@/lib/i18n/config"
 
 const drawioBaseUrl =
     process.env.NEXT_PUBLIC_DRAWIO_BASE_URL || "https://embed.diagrams.net"
+
+// Editor mode type
+export type EditorMode = "drawio" | "drawdb"
 
 export default function Home() {
     const { drawioRef, handleDiagramExport, onDrawioLoad, resetDrawioReady } =
@@ -28,6 +33,11 @@ export default function Home() {
     const [darkMode, setDarkMode] = useState(false)
     const [isLoaded, setIsLoaded] = useState(false)
     const [isDrawioReady, setIsDrawioReady] = useState(false)
+    
+    // Editor mode state
+    const [editorMode, setEditorMode] = useState<EditorMode>("drawio")
+    const erDiagramRef = useRef<ERDiagramRef>(null)
+    const { setERDiagramRef, currentSchema } = useSchema()
 
     const chatPanelRef = useRef<ImperativePanelHandle>(null)
     const isMobileRef = useRef(false)
@@ -66,6 +76,11 @@ export default function Home() {
 
         setIsLoaded(true)
     }, [pathname, router])
+
+    // Connect ERDiagram ref to schema context
+    useEffect(() => {
+        setERDiagramRef(erDiagramRef as React.RefObject<ERDiagramRef | null>)
+    }, [setERDiagramRef])
 
     const handleDrawioLoad = useCallback(() => {
         setIsDrawioReady(true)
@@ -145,45 +160,85 @@ export default function Home() {
                 className="h-full"
             >
                 <ResizablePanel
-                    id="drawio-panel"
+                    id="editor-panel"
                     defaultSize={isMobile ? 50 : 67}
                     minSize={20}
                 >
                     <div
-                        className={`h-full relative ${
+                        className={`h-full relative flex flex-col ${
                             isMobile ? "p-1" : "p-2"
                         }`}
                     >
-                        <div className="h-full rounded-xl overflow-hidden shadow-soft-lg border border-border/30 relative">
-                            {isLoaded && (
-                                <div
-                                    className={`h-full w-full ${isDrawioReady ? "" : "invisible absolute inset-0"}`}
-                                >
-                                    <DrawIoEmbed
-                                        key={`${drawioUi}-${darkMode}-${currentLang}`}
-                                        ref={drawioRef}
-                                        onExport={handleDiagramExport}
-                                        onLoad={handleDrawioLoad}
-                                        baseUrl={drawioBaseUrl}
-                                        urlParameters={{
-                                            ui: drawioUi,
-                                            spin: false,
-                                            libraries: false,
-                                            saveAndExit: false,
-                                            noSaveBtn: true,
-                                            noExitBtn: true,
-                                            dark: darkMode,
-                                            lang: currentLang,
-                                        }}
-                                    />
-                                </div>
+                        {/* Mode Switcher Tabs */}
+                        <div className="flex gap-1 mb-2">
+                            <button
+                                onClick={() => setEditorMode("drawio")}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                                    editorMode === "drawio"
+                                        ? "bg-primary text-primary-foreground"
+                                        : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                                }`}
+                            >
+                                Draw.io
+                            </button>
+                            <button
+                                onClick={() => setEditorMode("drawdb")}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                                    editorMode === "drawdb"
+                                        ? "bg-primary text-primary-foreground"
+                                        : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                                }`}
+                            >
+                                DrawDB
+                            </button>
+                        </div>
+                        
+                        {/* Editor Container */}
+                        <div className="flex-1 rounded-xl overflow-hidden shadow-soft-lg border border-border/30 relative">
+                            {/* Draw.io Editor */}
+                            {editorMode === "drawio" && (
+                                <>
+                                    {isLoaded && (
+                                        <div
+                                            className={`h-full w-full ${isDrawioReady ? "" : "invisible absolute inset-0"}`}
+                                        >
+                                            <DrawIoEmbed
+                                                key={`${drawioUi}-${darkMode}-${currentLang}`}
+                                                ref={drawioRef}
+                                                onExport={handleDiagramExport}
+                                                onLoad={handleDrawioLoad}
+                                                baseUrl={drawioBaseUrl}
+                                                urlParameters={{
+                                                    ui: drawioUi,
+                                                    spin: false,
+                                                    libraries: false,
+                                                    saveAndExit: false,
+                                                    noSaveBtn: true,
+                                                    noExitBtn: true,
+                                                    dark: darkMode,
+                                                    lang: currentLang,
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+                                    {(!isLoaded || !isDrawioReady) && (
+                                        <div className="h-full w-full bg-background flex items-center justify-center">
+                                            <span className="text-muted-foreground">
+                                                Draw.io panel is loading...
+                                            </span>
+                                        </div>
+                                    )}
+                                </>
                             )}
-                            {(!isLoaded || !isDrawioReady) && (
-                                <div className="h-full w-full bg-background flex items-center justify-center">
-                                    <span className="text-muted-foreground">
-                                        Draw.io panel is loading...
-                                    </span>
-                                </div>
+                            
+                            {/* DrawDB ER Diagram */}
+                            {editorMode === "drawdb" && (
+                                <ERDiagram
+                                    ref={erDiagramRef}
+                                    darkMode={darkMode}
+                                    className="h-full"
+                                    schema={currentSchema}
+                                />
                             )}
                         </div>
                     </div>
@@ -220,6 +275,8 @@ export default function Home() {
                                 darkMode={darkMode}
                                 onToggleDarkMode={handleDarkModeChange}
                                 isMobile={isMobile}
+                                editorMode={editorMode}
+                                onEditorModeChange={setEditorMode}
                             />
                         </Suspense>
                     </div>

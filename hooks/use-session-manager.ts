@@ -22,6 +22,7 @@ export interface SessionData {
     diagramXml: string
     thumbnailDataUrl?: string
     diagramHistory?: { svg: string; xml: string }[]
+    editorMode?: "drawio" | "drawdb"
 }
 
 export interface UseSessionManagerReturn {
@@ -199,6 +200,7 @@ export function useSessionManager(
                 diagramXml: session.diagramXml,
                 thumbnailDataUrl: session.thumbnailDataUrl,
                 diagramHistory: session.diagramHistory,
+                editorMode: session.editorMode,
             }
         },
         [currentSessionId, currentSession],
@@ -249,6 +251,7 @@ export function useSessionManager(
                     thumbnailDataUrl: data.thumbnailDataUrl,
                     diagramHistory: data.diagramHistory,
                     title: extractTitle(data.messages),
+                    editorMode: data.editorMode || "drawio",
                 }
                 await saveSession(newSession)
                 await enforceSessionLimit()
@@ -275,6 +278,7 @@ export function useSessionManager(
                     data.messages.length > 0
                         ? extractTitle(data.messages)
                         : currentSession.title,
+                editorMode: data.editorMode || currentSession.editorMode || "drawio",
             }
 
             await saveSession(updatedSession)
@@ -293,6 +297,7 @@ export function useSessionManager(
                                   !!updatedSession.diagramXml &&
                                   updatedSession.diagramXml.trim().length > 0,
                               thumbnailDataUrl: updatedSession.thumbnailDataUrl,
+                              editorMode: updatedSession.editorMode,
                           }
                         : s,
                 ),

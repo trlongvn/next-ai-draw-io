@@ -24,7 +24,14 @@ import { useDictionary } from "@/hooks/use-dictionary"
 import { getSelectedAIConfig } from "@/hooks/use-model-config"
 import { getApiEndpoint } from "@/lib/base-path"
 
-export type ExportFormat = "drawio" | "png" | "svg"
+export type ExportFormat =
+    | "drawio"
+    | "png"
+    | "svg"
+    | "json"
+    | "postgresql-sql"
+    | "mssql-sql"
+    | "uipath-xaml"
 
 interface SaveDialogProps {
     open: boolean
@@ -33,6 +40,7 @@ interface SaveDialogProps {
     defaultFilename: string
     currentXml?: string
     externalStorageEnabled?: boolean
+    editorMode?: "drawio" | "drawdb"
 }
 
 export function SaveDialog({
@@ -42,17 +50,22 @@ export function SaveDialog({
     defaultFilename,
     currentXml,
     externalStorageEnabled = false,
+    editorMode = "drawio",
 }: SaveDialogProps) {
     const dict = useDictionary()
     const [filename, setFilename] = useState(defaultFilename)
-    const [format, setFormat] = useState<ExportFormat>("drawio")
+    // Default format based on editor mode
+    const defaultFormat: ExportFormat = editorMode === "drawdb" ? "json" : "drawio"
+    const [format, setFormat] = useState<ExportFormat>(defaultFormat)
     const [isSavingToCloud, setIsSavingToCloud] = useState(false)
 
     useEffect(() => {
         if (open) {
             setFilename(defaultFilename)
+            // Reset format to default when dialog opens
+            setFormat(defaultFormat)
         }
-    }, [open, defaultFilename])
+    }, [open, defaultFilename, defaultFormat])
 
     const handleSave = () => {
         const finalFilename = filename.trim() || defaultFilename
@@ -112,7 +125,24 @@ export function SaveDialog({
         }
     }
 
-    const FORMAT_OPTIONS = [
+    // Format options based on editor mode
+    const FORMAT_OPTIONS = editorMode === "drawdb" ? [
+        {
+            value: "json" as const,
+            label: dict.save.formats.json || "JSON Schema",
+            extension: ".json",
+        },
+        {
+            value: "postgresql-sql" as const,
+            label: dict.save.formats.postgresqlSql || "PostgreSQL SQL",
+            extension: ".sql",
+        },
+        {
+            value: "mssql-sql" as const,
+            label: dict.save.formats.mssqlSql || "MSSQL SQL",
+            extension: ".sql",
+        },
+    ] : [
         {
             value: "drawio" as const,
             label: dict.save.formats.drawio,
@@ -127,6 +157,11 @@ export function SaveDialog({
             value: "svg" as const,
             label: dict.save.formats.svg,
             extension: ".svg",
+        },
+        {
+            value: "uipath-xaml" as const,
+            label: dict.save.formats.uipathXaml || "UiPath Workflow",
+            extension: ".xaml",
         },
     ]
 

@@ -21,9 +21,10 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { UrlInputDialog } from "@/components/url-input-dialog"
 import { useDiagram } from "@/contexts/diagram-context"
+import { useSchema } from "@/contexts/schema-context"
 import { useDictionary } from "@/hooks/use-dictionary"
 import { formatMessage } from "@/lib/i18n/utils"
-import { isDocxFile, isExcelFile, isPdfFile, isTextFile } from "@/lib/pdf-utils"
+import { isDocxFile, isExcelFile, isPdfFile, isScannableImage, isTextFile } from "@/lib/pdf-utils"
 import { STORAGE_KEYS } from "@/lib/storage"
 import type { FlattenedModel } from "@/lib/types/model-config"
 import { extractUrlContent, type UrlData } from "@/lib/url-utils"
@@ -39,7 +40,8 @@ function isValidFileType(file: File): boolean {
         isPdfFile(file) ||
         isTextFile(file) ||
         isDocxFile(file) ||
-        isExcelFile(file)
+        isExcelFile(file) ||
+        isScannableImage(file)
     )
 }
 
@@ -93,12 +95,13 @@ function validateFiles(
             )
             continue
         }
-        // Only check size for images (PDFs/text/DOCX/Excel files are extracted client-side, so file size doesn't matter)
+        // Only check size for images that will be sent directly (not OCR processed)
         const isExtractedFile =
             isPdfFile(file) ||
             isTextFile(file) ||
             isDocxFile(file) ||
-            isExcelFile(file)
+            isExcelFile(file) ||
+            isScannableImage(file)
         if (!isExtractedFile && file.size > MAX_IMAGE_SIZE) {
             const maxSizeMB = MAX_IMAGE_SIZE / 1024 / 1024
             errors.push(
@@ -164,6 +167,7 @@ interface ChatInputProps {
 
     sessionId?: string
     error?: Error | null
+    editorMode?: "drawio" | "drawdb"
     // Model selector props
     models?: FlattenedModel[]
     selectedModelId?: string
@@ -189,6 +193,7 @@ export function ChatInput({
     onModelSelect = () => {},
     showUnvalidatedModels = false,
     onConfigureModels = () => {},
+    editorMode = "drawio",
 }: ChatInputProps) {
     const dict = useDictionary()
     const {
@@ -198,6 +203,7 @@ export function ChatInput({
         showSaveDialog,
         setShowSaveDialog,
     } = useDiagram()
+    const { currentSchema, saveSchemaToFile } = useSchema()
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -466,8 +472,21 @@ export function ChatInput({
                             variant="ghost"
                             size="sm"
                             onClick={() => setShowSaveDialog(true)}
-                            disabled={isDisabled || !isRealDiagram(chartXML)}
-                            tooltipContent={dict.chat.saveDiagram}
+                            disabled={
+                                isDisabled ||
+                                (editorMode === "drawdb"
+                                    ? !currentSchema || currentSchema.tables.length === 0
+                                    : !isRealDiagram(chartXML))
+                            }
+                            tooltipContent={
+                                editorMode === "drawdb"
+                                    ? (!currentSchema || currentSchema.tables.length === 0
+                                        ? "Create a database schema to export"
+                                        : dict.chat.saveDiagram)
+                                    : (!isRealDiagram(chartXML)
+                                        ? "Create a diagram to export"
+                                        : dict.chat.saveDiagram)
+                            }
                             className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                         >
                             <Download className="h-4 w-4" />
@@ -545,14 +564,24 @@ export function ChatInput({
             <SaveDialog
                 open={showSaveDialog}
                 onOpenChange={setShowSaveDialog}
-                onSave={(filename, format) =>
-                    saveDiagramToFile(
-                        filename,
-                        format,
-                        sessionId,
-                        dict.save.savedSuccessfully,
-                    )
-                }
+                editorMode={editorMode}
+                onSave={(filename, format) => {
+                    if (editorMode === "drawdb") {
+                        saveSchemaToFile(
+                            filename,
+                            format,
+                            sessionId,
+                            dict.save.savedSuccessfully,
+                        )
+                    } else {
+                        saveDiagramToFile(
+                            filename,
+                            format,
+                            sessionId,
+                            dict.save.savedSuccessfully,
+                        )
+                    }
+                }}
                 defaultFilename={`diagram-${new Date()
                     .toISOString()
                     .slice(0, 10)}`}
